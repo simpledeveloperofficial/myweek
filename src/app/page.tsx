@@ -656,6 +656,20 @@ export default function Home() {
   }, [events, isHydrated, loadedUserId, session]);
 
   const t = copy[language];
+  const helperText =
+    language === "ru"
+      ? {
+          subhead:
+            "Собери уроки, секции, репетиторов и хобби в одном аккуратном расписании. Смотри неделю целиком и ничего не забывай.",
+          plannerHint: "Добавляй занятия по дням и быстро смотри всю неделю в одном месте.",
+          loadNote: "Нажми на пустой день, чтобы быстро добавить новое событие.",
+        }
+      : {
+          subhead:
+            "Keep classes, tutors, sports, and hobbies in one clean schedule. See your whole week clearly and forget less.",
+          plannerHint: "Add your activities by day and scan the whole week in one place.",
+          loadNote: "Tap an empty day to jump straight to adding a new event.",
+        };
   const todayKey = isHydrated ? getTodayKey() : "monday";
   const todayDateLabel = isHydrated
     ? new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-US", {
@@ -1397,7 +1411,7 @@ export default function Home() {
                   {t.headline}
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--muted)] sm:text-lg">
-                  {t.subhead}
+                  {helperText.subhead}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <StatusPill
@@ -1487,7 +1501,9 @@ export default function Home() {
                   ))
                 )}
               </div>
-              <p className="mt-5 text-sm leading-6 text-[color:var(--muted)]">{t.loadNote}</p>
+              <p className="mt-5 text-sm leading-6 text-[color:var(--muted)]">
+                {helperText.loadNote}
+              </p>
             </aside>
           </div>
         </section>
@@ -1499,7 +1515,9 @@ export default function Home() {
                 <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
                   {t.plannerTitle}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">{t.plannerHint}</p>
+                <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                  {helperText.plannerHint}
+                </p>
               </div>
             </div>
             <div className="mt-6 grid gap-3">
