@@ -1,0 +1,1920 @@
+"use client";
+
+import { startTransition, useEffect, useMemo, useState } from "react";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
+
+type Language = "ru" | "en";
+type Theme = "light" | "dark";
+type AuthMode = "signIn" | "signUp";
+type SaveState = "idle" | "saving" | "saved" | "local" | "error";
+type EventType = "school" | "tutor" | "sport" | "hobby";
+type DayKey =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+type ScheduleEvent = {
+  id: string;
+  title: string;
+  type: EventType;
+  day: DayKey;
+  startTime: string;
+  endTime: string;
+  location: string;
+};
+
+type Copy = {
+  appName: string;
+  badge: string;
+  headline: string;
+  subhead: string;
+  plannerTitle: string;
+  plannerHint: string;
+  focusTitle: string;
+  focusHint: string;
+  addTitle: string;
+  saveAction: string;
+  updateAction: string;
+  cancelAction: string;
+  editAction: string;
+  deleteAction: string;
+  settingsLabel: string;
+  settingsTitle: string;
+  settingsHint: string;
+  themeLabel: string;
+  themeLight: string;
+  themeDark: string;
+  emptyDay: string;
+  loadNote: string;
+  statsLessons: string;
+  statsActivities: string;
+  statsHours: string;
+  fields: {
+    title: string;
+    type: string;
+    day: string;
+    startTime: string;
+    endTime: string;
+    location: string;
+  };
+  eventTypes: Record<EventType, string>;
+  days: Record<DayKey, string>;
+};
+
+const storageKey = "myweek-schedule-v1";
+const themeStorageKey = "myweek-theme-v1";
+const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "simpledesignerdd@gmail.com";
+const supportWhatsapp = "https://wa.me/77478687825";
+const supportTelegram = "https://t.me/Dalernigmatov777";
+
+const copy: Record<Language, Copy> = {
+  ru: {
+    appName: "MyWeek",
+    badge: "Планировщик для 5-11 классов",
+    headline: "Школьная неделя без хаоса",
+    subhead:
+      "Собери уроки, секции, репетиторов и хобби в одном аккуратном расписании. Это первый MVP, который уже можно заполнять самому.",
+    plannerTitle: "Расписание недели",
+    plannerHint: "События сохраняются прямо в браузере, так что можно сразу тестировать как пользователь.",
+    focusTitle: "Сегодня в фокусе",
+    focusHint: "Короткая сводка помогает быстро понять нагрузку на день.",
+    addTitle: "Добавить событие",
+    saveAction: "Сохранить",
+    updateAction: "Сохранить изменения",
+    cancelAction: "Отмена",
+    editAction: "Изменить",
+    deleteAction: "Удалить",
+    settingsLabel: "Настройки",
+    settingsTitle: "Настройки",
+    settingsHint: "Управляй темой и внешним видом приложения.",
+    themeLabel: "Тема",
+    themeLight: "Светлая",
+    themeDark: "Темная",
+    emptyDay: "Пока пусто",
+    loadNote: "Следующий шаг: подключим базу данных, вход и загрузку фото расписания через ИИ.",
+    statsLessons: "уроков",
+    statsActivities: "активностей",
+    statsHours: "часов занято",
+    fields: {
+      title: "Название",
+      type: "Категория",
+      day: "День",
+      startTime: "Начало",
+      endTime: "Конец",
+      location: "Кабинет / место",
+    },
+    eventTypes: {
+      school: "Школа",
+      tutor: "Репетитор",
+      sport: "Спорт",
+      hobby: "Хобби",
+    },
+    days: {
+      monday: "Пн",
+      tuesday: "Вт",
+      wednesday: "Ср",
+      thursday: "Чт",
+      friday: "Пт",
+      saturday: "Сб",
+      sunday: "Вс",
+    },
+  },
+  en: {
+    appName: "MyWeek",
+    badge: "Planner for grades 5-11",
+    headline: "A calmer school week",
+    subhead:
+      "Keep classes, tutors, sports, and hobbies in one clean schedule. This is the first MVP and you can already use it yourself.",
+    plannerTitle: "Weekly schedule",
+    plannerHint: "Events are saved in the browser, so the prototype already behaves like a real student app.",
+    focusTitle: "Today at a glance",
+    focusHint: "A quick summary makes daily workload easy to scan.",
+    addTitle: "Add event",
+    saveAction: "Save",
+    updateAction: "Save changes",
+    cancelAction: "Cancel",
+    editAction: "Edit",
+    deleteAction: "Delete",
+    settingsLabel: "Settings",
+    settingsTitle: "Settings",
+    settingsHint: "Control the look of your planner.",
+    themeLabel: "Theme",
+    themeLight: "Light",
+    themeDark: "Dark",
+    emptyDay: "Nothing yet",
+    loadNote: "Next step: connect a database, sign-in, and AI schedule photo upload.",
+    statsLessons: "lessons",
+    statsActivities: "activities",
+    statsHours: "hours booked",
+    fields: {
+      title: "Title",
+      type: "Category",
+      day: "Day",
+      startTime: "Start",
+      endTime: "End",
+      location: "Room / place",
+    },
+    eventTypes: {
+      school: "School",
+      tutor: "Tutor",
+      sport: "Sport",
+      hobby: "Hobby",
+    },
+    days: {
+      monday: "Mon",
+      tuesday: "Tue",
+      wednesday: "Wed",
+      thursday: "Thu",
+      friday: "Fri",
+      saturday: "Sat",
+      sunday: "Sun",
+    },
+  },
+};
+
+const initialEvents: ScheduleEvent[] = [
+  {
+    id: "9f56d87a-3b31-4d68-b7f8-d7f42155d901",
+    title: "Math",
+    type: "school",
+    day: "monday",
+    startTime: "08:00",
+    endTime: "08:45",
+    location: "204",
+  },
+  {
+    id: "0b0a237c-9586-4b78-a20d-1324141d9c86",
+    title: "English Tutor",
+    type: "tutor",
+    day: "monday",
+    startTime: "17:00",
+    endTime: "18:00",
+    location: "Online",
+  },
+  {
+    id: "aa8a5f4f-28ae-4999-9e07-946e39f81b4d",
+    title: "Football",
+    type: "sport",
+    day: "wednesday",
+    startTime: "16:30",
+    endTime: "18:00",
+    location: "Field A",
+  },
+  {
+    id: "30d67e72-f56e-4974-b69a-882214f42d7f",
+    title: "Art Club",
+    type: "hobby",
+    day: "friday",
+    startTime: "15:00",
+    endTime: "16:20",
+    location: "Studio",
+  },
+];
+
+const legacyInitialEventIds = new Set(initialEvents.map((event) => event.id));
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function normalizeEvents(events: ScheduleEvent[]) {
+  return events.map((event) => ({
+    ...event,
+    id:
+      isUuid(event.id) && !legacyInitialEventIds.has(event.id)
+        ? event.id
+        : crypto.randomUUID(),
+  }));
+}
+
+const dayOrder: DayKey[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+function minutesBetween(start: string, end: string) {
+  const [startHour, startMinute] = start.split(":").map(Number);
+  const [endHour, endMinute] = end.split(":").map(Number);
+  return endHour * 60 + endMinute - (startHour * 60 + startMinute);
+}
+
+function getTodayKey(): DayKey {
+  const index = new Date().getDay();
+  return dayOrder[(index + 6) % 7];
+}
+
+function createDefaultForm(day: DayKey = "monday") {
+  return {
+    title: "",
+    type: "school" as EventType,
+    day,
+    startTime: "08:00",
+    endTime: "08:45",
+    location: "",
+  };
+}
+
+function isPristineForm(form: ReturnType<typeof createDefaultForm>) {
+  return (
+    form.title === "" &&
+    form.type === "school" &&
+    form.startTime === "08:00" &&
+    form.endTime === "08:45" &&
+    form.location === ""
+  );
+}
+
+export default function Home() {
+  const [language, setLanguage] = useState<Language>("ru");
+  const [theme, setTheme] = useState<Theme>("light");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("signIn");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("local");
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [events, setEvents] = useState<ScheduleEvent[]>(() => normalizeEvents(initialEvents));
+  const [form, setForm] = useState(() => createDefaultForm());
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem(themeStorageKey);
+    const stored = window.localStorage.getItem(storageKey);
+
+    if (storedTheme === "light" || storedTheme === "dark") {
+      startTransition(() => {
+        setTheme(storedTheme);
+      });
+    }
+
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as ScheduleEvent[];
+
+        if (Array.isArray(parsed)) {
+          startTransition(() => {
+            setEvents(normalizeEvents(parsed));
+          });
+        }
+      } catch {
+        window.localStorage.removeItem(storageKey);
+      }
+    }
+
+    startTransition(() => {
+      setIsHydrated(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated || !isSupabaseConfigured) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    let active = true;
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) {
+        return;
+      }
+
+      if (error) {
+        console.error("Failed to get Supabase session", error);
+      }
+
+      startTransition(() => {
+        setSession(data.session ?? null);
+        setAuthReady(true);
+      });
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      startTransition(() => {
+        setSession(nextSession);
+        setAuthReady(true);
+      });
+
+      if (event === "PASSWORD_RECOVERY") {
+        startTransition(() => {
+          setAuthOpen(true);
+          setIsRecoveringPassword(true);
+          setAuthError("");
+          setAuthNotice("");
+          setAuthPassword("");
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || session?.user.id) {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(events));
+    startTransition(() => {
+      setSaveState("local");
+    });
+  }, [events, isHydrated, session]);
+
+  useEffect(() => {
+    if (!isHydrated || session?.user.id) {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(storageKey);
+
+    if (!stored) {
+      startTransition(() => {
+        setEvents(normalizeEvents(initialEvents));
+      });
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as ScheduleEvent[];
+
+      if (Array.isArray(parsed)) {
+        startTransition(() => {
+          setEvents(normalizeEvents(parsed));
+        });
+      }
+    } catch {
+      window.localStorage.removeItem(storageKey);
+
+      startTransition(() => {
+        setEvents(normalizeEvents(initialEvents));
+      });
+    }
+  }, [isHydrated, session]);
+
+  useEffect(() => {
+    if (!isHydrated || editingEventId) {
+      return;
+    }
+
+    startTransition(() => {
+      setForm((current) => {
+        if (!isPristineForm(current)) {
+          return current;
+        }
+
+        return createDefaultForm(getTodayKey());
+      });
+    });
+  }, [editingEventId, isHydrated]);
+
+  useEffect(() => {
+    const userId = session?.user.id ?? null;
+
+    if (!isHydrated) {
+      return;
+    }
+
+    if (!userId || !isSupabaseConfigured) {
+      startTransition(() => {
+        setLoadedUserId(null);
+        setSaveState("local");
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    startTransition(() => {
+      setLoadedUserId(null);
+    });
+
+    async function loadRemoteEvents() {
+      const supabase = getSupabaseBrowserClient();
+
+      if (!supabase) {
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("schedule_events")
+        .select("id, title, type, day, start_time, end_time, location")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error("Failed to load schedule events from Supabase", error);
+        startTransition(() => {
+          setLoadedUserId(userId);
+          setSaveState("error");
+        });
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const remoteEvents = data.map((event) => ({
+          id: event.id,
+          title: event.title,
+          type: event.type as EventType,
+          day: event.day as DayKey,
+          startTime: event.start_time,
+          endTime: event.end_time,
+          location: event.location,
+        }));
+
+        startTransition(() => {
+          setEvents(normalizeEvents(remoteEvents));
+        });
+      }
+
+      startTransition(() => {
+        setLoadedUserId(userId);
+        setSaveState("saved");
+      });
+    }
+
+    void loadRemoteEvents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, session]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme, isHydrated]);
+
+  useEffect(() => {
+    const userId = session?.user.id ?? null;
+
+    if (!isHydrated || !userId || loadedUserId !== userId || !isSupabaseConfigured) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function syncRemoteEvents() {
+      const supabase = getSupabaseBrowserClient();
+
+      if (!supabase) {
+        return;
+      }
+
+      startTransition(() => {
+        setSaveState("saving");
+      });
+
+      const payload = events.map((event) => ({
+        id: event.id,
+        user_id: userId,
+        title: event.title,
+        type: event.type,
+        day: event.day,
+        start_time: event.startTime,
+        end_time: event.endTime,
+        location: event.location,
+      }));
+
+      if (events.length === 0) {
+        const { error: deleteAllError } = await supabase
+          .from("schedule_events")
+          .delete()
+          .eq("user_id", userId);
+
+        if (deleteAllError && !cancelled) {
+          console.error("Failed to clear schedule events in Supabase", deleteAllError);
+          startTransition(() => {
+            setSaveState("error");
+          });
+        } else if (!cancelled) {
+          startTransition(() => {
+            setSaveState("saved");
+          });
+        }
+
+        return;
+      }
+
+      const { error: upsertError } = await supabase
+        .from("schedule_events")
+        .upsert(payload, { onConflict: "id" });
+
+      if (upsertError && !cancelled) {
+        console.error("Failed to save schedule events to Supabase", {
+          message: upsertError.message,
+          details: upsertError.details,
+          hint: upsertError.hint,
+          code: upsertError.code,
+        });
+        startTransition(() => {
+          setSaveState("error");
+        });
+        return;
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const { data: existingRows, error: existingRowsError } = await supabase
+        .from("schedule_events")
+        .select("id")
+        .eq("user_id", userId);
+
+      if (existingRowsError) {
+        console.error("Failed to inspect stale schedule events in Supabase", existingRowsError);
+        startTransition(() => {
+          setSaveState("error");
+        });
+        return;
+      }
+
+      const currentIds = new Set(events.map((event) => event.id));
+      const staleIds = (existingRows ?? [])
+        .map((row) => row.id)
+        .filter((id) => !currentIds.has(id));
+
+      if (staleIds.length === 0 || cancelled) {
+        if (!cancelled) {
+          startTransition(() => {
+            setSaveState("saved");
+          });
+        }
+        return;
+      }
+
+      const { error: staleDeleteError } = await supabase
+        .from("schedule_events")
+        .delete()
+        .eq("user_id", userId)
+        .in("id", staleIds);
+
+      if (staleDeleteError && !cancelled) {
+        console.error("Failed to remove stale schedule events from Supabase", {
+          message: staleDeleteError.message,
+          details: staleDeleteError.details,
+          hint: staleDeleteError.hint,
+          code: staleDeleteError.code,
+        });
+        startTransition(() => {
+          setSaveState("error");
+        });
+      } else if (!cancelled) {
+        startTransition(() => {
+          setSaveState("saved");
+        });
+      }
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void syncRemoteEvents();
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [events, isHydrated, loadedUserId, session]);
+
+  const t = copy[language];
+  const todayKey = isHydrated ? getTodayKey() : "monday";
+  const todayDateLabel = isHydrated
+    ? new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date())
+    : "";
+  const uiText =
+    language === "ru"
+      ? {
+          lessonsToday: "уроков сегодня",
+          activitiesToday: "активностей сегодня",
+          hoursToday: "часов сегодня",
+          edit: "Изменить",
+          delete: "Удалить",
+          saveChanges: "Сохранить изменения",
+          cancel: "Отмена",
+          editModeTitle: "Редактировать событие",
+        }
+      : {
+          lessonsToday: "lessons today",
+          activitiesToday: "activities today",
+          hoursToday: "hours today",
+          edit: "Edit",
+          delete: "Delete",
+          saveChanges: "Save changes",
+          cancel: "Cancel",
+          editModeTitle: "Edit event",
+        };
+  const authText =
+    language === "ru"
+      ? {
+          account: "Аккаунт",
+          authCta: "Войти",
+          authTitleSignIn: "Вход в MyWeek",
+          authTitleSignUp: "Регистрация в MyWeek",
+          authHint:
+            "С аккаунтом расписание будет сохраняться в облаке и появляться на других устройствах.",
+          authEmail: "Почта",
+          authPassword: "Пароль",
+          authPasswordHint: "Минимум 6 символов.",
+          authSubmitSignIn: "Войти",
+          authSubmitSignUp: "Создать аккаунт",
+          authSwitchToSignIn: "Уже есть аккаунт? Войти",
+          authSwitchToSignUp: "Нет аккаунта? Зарегистрироваться",
+          authSignedInAs: "Вы вошли как",
+          authSignOut: "Выйти",
+          authSyncGuest: "До входа расписание хранится только на этом устройстве. После входа оно перейдет в ваш аккаунт.",
+          authSyncCloud: "Сейчас расписание хранится в вашем аккаунте и защищено через вход.",
+          authWaiting: "Проверяем сессию...",
+          authNoSupabase: "Сначала нужно закончить настройку Supabase.",
+          authSignedInNotice: "Вход выполнен.",
+          authSignUpNotice:
+            "Аккаунт создан. Если включено подтверждение почты, проверь письмо и затем войди.",
+        }
+      : {
+          account: "Account",
+          authCta: "Sign in",
+          authTitleSignIn: "Sign in to MyWeek",
+          authTitleSignUp: "Create your MyWeek account",
+          authHint:
+            "With an account, your schedule syncs in the cloud and follows you to other devices.",
+          authEmail: "Email",
+          authPassword: "Password",
+          authPasswordHint: "At least 6 characters.",
+          authSubmitSignIn: "Sign in",
+          authSubmitSignUp: "Create account",
+          authSwitchToSignIn: "Already have an account? Sign in",
+          authSwitchToSignUp: "No account yet? Sign up",
+          authSignedInAs: "Signed in as",
+          authSignOut: "Sign out",
+          authSyncGuest: "Before sign in, your schedule stays only on this device. After sign in, it moves into your account.",
+          authSyncCloud: "Your schedule is now stored in your account and protected by sign-in.",
+          authWaiting: "Checking session...",
+          authNoSupabase: "Supabase setup is still missing.",
+          authSignedInNotice: "Signed in.",
+          authSignUpNotice:
+            "Account created. If email confirmation is enabled, check your inbox and then sign in.",
+        };
+  const accountToolsText =
+    language === "ru"
+      ? {
+          forgotPassword: "Забыли пароль?",
+          resetTitle: "Новый пароль",
+          resetHint:
+            "Открой письмо от Supabase, перейди по ссылке и затем задай новый пароль здесь.",
+          resetSubmit: "Сохранить новый пароль",
+          resetNotice: "Письмо для сброса пароля отправлено.",
+          resetSuccess: "Пароль обновлен. Теперь можно войти.",
+          support: "Поддержка",
+          supportHint:
+            "Если что-то сломалось или есть идея по улучшению, можно написать напрямую.",
+          supportAction: "Написать в поддержку",
+        }
+      : {
+          forgotPassword: "Forgot password?",
+          resetTitle: "New password",
+          resetHint:
+            "Open the email from Supabase, follow the recovery link, then set your new password here.",
+          resetSubmit: "Save new password",
+          resetNotice: "Password reset email sent.",
+          resetSuccess: "Password updated. You can sign in now.",
+          support: "Support",
+          supportHint:
+            "If something breaks or you have an idea, you can contact support directly.",
+          supportAction: "Contact support",
+        };
+  const supportLinksText =
+    language === "ru"
+      ? {
+          whatsapp: "WhatsApp",
+          telegram: "Telegram",
+          email: "Email",
+        }
+      : {
+          whatsapp: "WhatsApp",
+          telegram: "Telegram",
+          email: "Email",
+        };
+  const statusText =
+    language === "ru"
+      ? {
+          idle: "Готово к планированию",
+          local: "Сохранено на устройстве",
+          saving: "Сохраняем",
+          saved: "Синхронизировано",
+          error: "Ошибка синхронизации",
+        }
+      : {
+          idle: "Ready to plan",
+          local: "Saved on device",
+          saving: "Saving",
+          saved: "Synced",
+          error: "Sync error",
+        };
+
+  const groupedEvents = useMemo(
+    () =>
+      dayOrder.map((day) => ({
+        day,
+        events: events
+          .filter((event) => event.day === day)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      })),
+    [events],
+  );
+
+  const todayEvents = groupedEvents.find((group) => group.day === todayKey)?.events ?? [];
+  const lessonCount = todayEvents.filter((event) => event.type === "school").length;
+  const activityCount = todayEvents.filter((event) => event.type !== "school").length;
+  const totalHours = Math.max(
+    0,
+    Math.round(
+      (todayEvents.reduce(
+        (total, event) => total + minutesBetween(event.startTime, event.endTime),
+        0,
+      ) /
+        60) *
+        10,
+    ) / 10,
+  );
+
+  async function submitAuth() {
+    if (!isSupabaseConfigured) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    const credentials = {
+      email: authEmail.trim(),
+      password: authPassword,
+    };
+
+    const { error } =
+      authMode === "signUp"
+        ? await supabase.auth.signUp(credentials)
+        : await supabase.auth.signInWithPassword(credentials);
+
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+      return;
+    }
+
+    setAuthPassword("");
+
+    if (authMode === "signUp") {
+      setAuthNotice(authText.authSignUpNotice);
+    } else {
+      setAuthNotice(authText.authSignedInNotice);
+      setAuthOpen(false);
+    }
+
+    setAuthLoading(false);
+  }
+
+  async function sendPasswordReset() {
+    if (!isSupabaseConfigured) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    const email = authEmail.trim();
+
+    if (!email) {
+      setAuthError(language === "ru" ? "Сначала введи почту." : "Enter your email first.");
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+      return;
+    }
+
+    setAuthNotice(accountToolsText.resetNotice);
+    setAuthLoading(false);
+  }
+
+  async function submitRecoveredPassword() {
+    if (!authPassword || authPassword.length < 6) {
+      setAuthError(language === "ru" ? "Пароль слишком короткий." : "Password is too short.");
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    const { error } = await supabase.auth.updateUser({
+      password: authPassword,
+    });
+
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+      return;
+    }
+
+    setAuthPassword("");
+    setIsRecoveringPassword(false);
+    setAuthMode("signIn");
+    setAuthNotice(accountToolsText.resetSuccess);
+    setAuthLoading(false);
+  }
+
+  async function signOut() {
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    setSettingsOpen(false);
+    setAuthNotice("");
+    setAuthError("");
+  }
+
+  function addEvent() {
+    if (!form.title.trim()) {
+      return;
+    }
+
+    if (editingEventId) {
+      setEvents((current) =>
+        current.map((event) =>
+          event.id === editingEventId
+            ? {
+                ...event,
+                title: form.title.trim(),
+                type: form.type,
+                day: form.day,
+                startTime: form.startTime,
+                endTime: form.endTime,
+                location: form.location.trim(),
+              }
+            : event,
+        ),
+      );
+      setEditingEventId(null);
+    } else {
+      const nextEvent: ScheduleEvent = {
+        id: crypto.randomUUID(),
+        title: form.title.trim(),
+        type: form.type,
+        day: form.day,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        location: form.location.trim(),
+      };
+
+      setEvents((current) => [...current, nextEvent]);
+    }
+
+    setForm(createDefaultForm(getTodayKey()));
+  }
+
+  function startEditing(event: ScheduleEvent) {
+    setEditingEventId(event.id);
+    setForm({
+      title: event.title,
+      type: event.type,
+      day: event.day,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingEventId(null);
+    setForm(createDefaultForm(getTodayKey()));
+  }
+
+  function deleteEvent(eventId: string) {
+    setEvents((current) => current.filter((event) => event.id !== eventId));
+
+    if (editingEventId === eventId) {
+      cancelEditing();
+    }
+  }
+
+  return (
+    <main className="min-h-screen px-4 py-6 text-[var(--foreground)] sm:px-6 lg:px-10">
+      {authOpen ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            aria-label="Close auth"
+            className="absolute inset-0 bg-[color:rgba(7,20,47,0.3)] backdrop-blur-md"
+            onClick={() => setAuthOpen(false)}
+            type="button"
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+            <div className="pointer-events-auto liquid-glass animate-scale-in w-full max-w-md rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 shadow-[0_40px_120px_rgba(3,9,27,0.34)] sm:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                    {isRecoveringPassword
+                      ? accountToolsText.resetTitle
+                      : authMode === "signIn"
+                        ? authText.authTitleSignIn
+                        : authText.authTitleSignUp}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                    {isRecoveringPassword ? accountToolsText.resetHint : authText.authHint}
+                  </p>
+                </div>
+                <button
+                  className="rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--muted)] transition hover:text-[var(--accent)]"
+                  onClick={() => {
+                    setAuthOpen(false);
+                    setIsRecoveringPassword(false);
+                  }}
+                  type="button"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+              <div className="mt-6 grid gap-4">
+                <Field label={authText.authEmail}>
+                  <input
+                    autoComplete="email"
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    type="email"
+                    value={authEmail}
+                    disabled={isRecoveringPassword}
+                  />
+                </Field>
+                <Field label={authText.authPassword}>
+                  <input
+                    autoComplete={
+                      isRecoveringPassword
+                        ? "new-password"
+                        : authMode === "signIn"
+                          ? "current-password"
+                          : "new-password"
+                    }
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="••••••••"
+                    type="password"
+                    value={authPassword}
+                  />
+                </Field>
+                <p className="text-sm text-[color:var(--muted)]">{authText.authPasswordHint}</p>
+                {authError ? (
+                  <StatusBanner tone="error" icon={<AlertIcon />} text={authError} />
+                ) : null}
+                {authNotice ? (
+                  <StatusBanner tone="success" icon={<CheckIcon />} text={authNotice} />
+                ) : null}
+                <button
+                  className="mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={
+                    authLoading ||
+                    (!isRecoveringPassword && !authEmail.trim()) ||
+                    authPassword.length < 6
+                  }
+                  onClick={isRecoveringPassword ? submitRecoveredPassword : submitAuth}
+                  type="button"
+                >
+                  <SparkIcon />
+                  {authLoading
+                    ? "..."
+                    : isRecoveringPassword
+                      ? accountToolsText.resetSubmit
+                      : authMode === "signIn"
+                        ? authText.authSubmitSignIn
+                        : authText.authSubmitSignUp}
+                </button>
+                {isRecoveringPassword ? null : (
+                  <>
+                    {authMode === "signIn" ? (
+                      <button
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:opacity-80"
+                        onClick={sendPasswordReset}
+                        type="button"
+                      >
+                        <RefreshIcon />
+                        {accountToolsText.forgotPassword}
+                      </button>
+                    ) : null}
+                    <button
+                      className="text-sm font-semibold text-[var(--accent)] transition hover:opacity-80"
+                      onClick={() => {
+                        setAuthError("");
+                        setAuthNotice("");
+                        setIsRecoveringPassword(false);
+                        setAuthMode((current) => (current === "signIn" ? "signUp" : "signIn"));
+                      }}
+                      type="button"
+                    >
+                      {authMode === "signIn"
+                        ? authText.authSwitchToSignUp
+                        : authText.authSwitchToSignIn}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {settingsOpen ? (
+        <div className="fixed inset-0 z-40">
+          <button
+            aria-label="Close settings"
+            className="absolute inset-0 bg-[color:rgba(7,20,47,0.28)] backdrop-blur-md"
+            onClick={() => setSettingsOpen(false)}
+            type="button"
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+            <div className="pointer-events-auto liquid-glass animate-scale-in w-full max-w-xl rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 shadow-[0_40px_120px_rgba(3,9,27,0.34)] sm:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                    {t.settingsTitle}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                    {t.settingsHint}
+                  </p>
+                </div>
+                <button
+                  className="rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--muted)] transition hover:text-[var(--accent)]"
+                  onClick={() => setSettingsOpen(false)}
+                  type="button"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
+                  {authText.account}
+                </p>
+                <div className="rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
+                  {isSupabaseConfigured ? (
+                    authReady ? (
+                      session ? (
+                        <div className="grid gap-3">
+                          <p className="text-sm leading-6 text-[color:var(--muted)]">
+                            {authText.authSignedInAs}{" "}
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {session.user.email}
+                            </span>
+                          </p>
+                          <p className="text-sm leading-6 text-[color:var(--muted)]">
+                            {authText.authSyncCloud}
+                          </p>
+                          <button
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                            onClick={signOut}
+                            type="button"
+                          >
+                            <LogoutIcon />
+                            {authText.authSignOut}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          <p className="text-sm leading-6 text-[color:var(--muted)]">
+                            {authText.authSyncGuest}
+                          </p>
+                          <button
+                            className="inline-flex h-11 items-center justify-center rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                            onClick={() => {
+                              setSettingsOpen(false);
+                              setIsRecoveringPassword(false);
+                              setAuthOpen(true);
+                            }}
+                            type="button"
+                          >
+                            {authText.authCta}
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <p className="text-sm leading-6 text-[color:var(--muted)]">
+                        {authText.authWaiting}
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-sm leading-6 text-[color:var(--muted)]">
+                      {authText.authNoSupabase}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
+                  {t.themeLabel}
+                </p>
+                <div className="relative inline-grid h-14 w-[220px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl">
+                  <span
+                    aria-hidden="true"
+                    className={`absolute top-1 h-12 w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
+                      theme === "light" ? "left-1" : "left-[calc(50%+3px)]"
+                    }`}
+                  />
+                  <button
+                    className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                      theme === "light"
+                        ? "text-white"
+                        : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                    }`}
+                    onClick={() => setTheme("light")}
+                    type="button"
+                  >
+                    {t.themeLight}
+                  </button>
+                  <button
+                    className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                      theme === "dark"
+                        ? "text-white"
+                        : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                    }`}
+                    onClick={() => setTheme("dark")}
+                    type="button"
+                  >
+                    {t.themeDark}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
+                  {accountToolsText.support}
+                </p>
+                <div className="grid gap-3 rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
+                  <p className="text-sm leading-6 text-[color:var(--muted)]">
+                    {accountToolsText.supportHint}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      href={supportWhatsapp}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <WhatsappIcon />
+                      {supportLinksText.whatsapp}
+                    </a>
+                    <a
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      href={supportTelegram}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <TelegramIcon />
+                      {supportLinksText.telegram}
+                    </a>
+                    <a
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      href={`mailto:${supportEmail}`}
+                    >
+                      <MailIcon />
+                      {supportLinksText.email}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <section className="liquid-glass overflow-hidden rounded-[28px] border border-[var(--line)] bg-[var(--surface)]">
+          <div className="grid gap-8 px-5 py-6 sm:px-8 lg:grid-cols-[1.35fr_0.65fr] lg:px-10 lg:py-10">
+            <div className="flex flex-col gap-5">
+              <div className="grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-start">
+                <div className="flex flex-col gap-3 lg:items-start">
+                  <p className="inline-flex w-fit rounded-full bg-[color:rgba(169,192,224,0.28)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)] sm:text-xs">
+                    {t.badge}
+                  </p>
+                  <p className="text-sm font-semibold capitalize text-[color:var(--muted)]">
+                    {todayDateLabel}
+                  </p>
+                </div>
+                <div className="lg:justify-self-center">
+                  <h1 className="text-left font-[family-name:var(--font-space-grotesk)] text-4xl font-bold tracking-tight text-[var(--accent)] sm:text-5xl lg:text-center">
+                    {t.appName}
+                  </h1>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 lg:justify-self-end">
+                  {isSupabaseConfigured ? (
+                    <button
+                      className="liquid-glass inline-flex h-12 max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:max-w-[240px] sm:px-5"
+                      onClick={() => {
+                        setAuthError("");
+                        setAuthNotice("");
+                        setIsRecoveringPassword(false);
+                        setAuthMode(session ? "signIn" : "signUp");
+                        setAuthOpen(true);
+                      }}
+                      type="button"
+                    >
+                      <UserIcon />
+                      {session?.user.email ?? authText.authCta}
+                    </button>
+                  ) : null}
+                  <button
+                    className="liquid-glass inline-flex h-12 items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:px-5"
+                    onClick={() => setSettingsOpen((current) => !current)}
+                    type="button"
+                  >
+                    <SettingsIcon />
+                    {t.settingsLabel}
+                  </button>
+                  <div className="relative inline-grid h-12 w-[132px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl sm:h-14 sm:w-[142px]">
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-1 h-12 w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
+                        language === "ru" ? "left-1" : "left-[calc(50%+3px)]"
+                      }`}
+                    />
+                    <button
+                      className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                        language === "ru"
+                          ? "text-white"
+                          : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                      }`}
+                      onClick={() => setLanguage("ru")}
+                      type="button"
+                    >
+                      RU
+                    </button>
+                    <button
+                      className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                        language === "en"
+                          ? "text-white"
+                          : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                      }`}
+                      onClick={() => setLanguage("en")}
+                      type="button"
+                    >
+                      EN
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-2xl">
+                <h2 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold tracking-tight text-[var(--accent)] sm:text-4xl">
+                  {t.headline}
+                </h2>
+                <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--muted)] sm:text-lg">
+                  {t.subhead}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <StatusPill
+                    icon={
+                      saveState === "saving" ? (
+                        <LoaderIcon />
+                      ) : saveState === "error" ? (
+                        <AlertIcon />
+                      ) : saveState === "saved" ? (
+                        <CloudCheckIcon />
+                      ) : (
+                        <DeviceIcon />
+                      )
+                    }
+                    label={statusText[saveState]}
+                    tone={saveState}
+                  />
+                  <StatusPill
+                    icon={<CalendarIcon />}
+                    label={language === "ru" ? `${todayEvents.length} дел на сегодня` : `${todayEvents.length} items today`}
+                    tone="idle"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <StatCard value={lessonCount} label={uiText.lessonsToday} />
+                <StatCard value={activityCount} label={uiText.activitiesToday} />
+                <StatCard value={totalHours} label={uiText.hoursToday} />
+              </div>
+            </div>
+            <aside className="liquid-glass rounded-[24px] border border-[var(--line)] bg-[var(--surface-strong)] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    {t.focusTitle}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">{t.focusHint}</p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:rgba(169,192,224,0.34)] text-lg font-bold text-[var(--accent)]">
+                  {t.days[todayKey]}
+                </div>
+              </div>
+              <div className="mt-5 space-y-3">
+                {todayEvents.length === 0 ? (
+                  <p className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-4 py-5 text-sm font-medium text-[var(--empty-text)]">
+                    {t.emptyDay}
+                  </p>
+                ) : (
+                  todayEvents.map((event) => (
+                    <article
+                      key={event.id}
+                      className="liquid-glass animate-fade-up rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 py-3 transition hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[var(--foreground)]">{event.title}</p>
+                          <p className="mt-1 text-sm text-[color:var(--muted)]">
+                            {t.eventTypes[event.type]}
+                            {event.location ? ` • ${event.location}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <p className="rounded-full bg-[color:rgba(169,192,224,0.18)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                            {event.startTime} - {event.endTime}
+                          </p>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button
+                              className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                              onClick={() => startEditing(event)}
+                              type="button"
+                            >
+                              <EditIcon />
+                              {uiText.edit}
+                            </button>
+                            <button
+                              className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                              onClick={() => deleteEvent(event.id)}
+                              type="button"
+                            >
+                              <TrashIcon />
+                              {uiText.delete}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+              <p className="mt-5 text-sm leading-6 text-[color:var(--muted)]">{t.loadNote}</p>
+            </aside>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                  {t.plannerTitle}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">{t.plannerHint}</p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3">
+              {groupedEvents.map((group) => (
+                <div
+                  key={group.day}
+                  className="liquid-glass rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[var(--accent)]">
+                      {t.days[group.day]}
+                    </h4>
+                    <span className="text-sm text-[color:rgba(14,47,118,0.42)]">
+                      {group.events.length.toString().padStart(2, "0")}
+                    </span>
+                  </div>
+                  <div className="grid gap-2">
+                    {group.events.length === 0 ? (
+                      <p className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-3 py-4 text-sm font-medium text-[var(--empty-text)]">
+                        {t.emptyDay}
+                      </p>
+                    ) : (
+                      group.events.map((event) => (
+                        <article
+                          key={event.id}
+                          className="liquid-glass animate-fade-up grid gap-3 rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--event-surface)] px-3 py-3 transition hover:-translate-y-0.5 sm:grid-cols-[88px_1fr]"
+                        >
+                          <div className="text-sm font-semibold text-[color:var(--muted)]">
+                            {event.startTime}
+                            <br />
+                            <span className="text-xs font-medium text-[color:rgba(14,47,118,0.46)]">
+                              {event.endTime}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-semibold text-[var(--foreground)]">{event.title}</p>
+                              <p className="mt-1 text-sm text-[color:var(--muted)]">
+                                {t.eventTypes[event.type]}
+                                {event.location ? ` • ${event.location}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-[color:rgba(169,192,224,0.28)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                                {t.eventTypes[event.type]}
+                              </span>
+                              <button
+                                className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                                onClick={() => startEditing(event)}
+                                type="button"
+                              >
+                                <EditIcon />
+                                {uiText.edit}
+                              </button>
+                              <button
+                                className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                                onClick={() => deleteEvent(event.id)}
+                                type="button"
+                              >
+                                <TrashIcon />
+                                {uiText.delete}
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                {editingEventId ? uiText.editModeTitle : t.addTitle}
+              </h3>
+              {editingEventId ? (
+                <button
+                  className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                  onClick={cancelEditing}
+                  type="button"
+                >
+                  {uiText.cancel}
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-6 grid gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusPill
+                  icon={editingEventId ? <EditIcon /> : <SparkIcon />}
+                  label={editingEventId ? uiText.editModeTitle : t.saveAction}
+                  tone="idle"
+                />
+                <StatusPill
+                  icon={<CalendarIcon />}
+                  label={language === "ru" ? `День: ${t.days[form.day]}` : `Day: ${t.days[form.day]}`}
+                  tone="local"
+                />
+              </div>
+              <Field label={t.fields.title}>
+                <input
+                  className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  placeholder={language === "ru" ? "Например, Алгебра" : "For example, Algebra"}
+                  value={form.title}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t.fields.type}>
+                  <select
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        type: event.target.value as EventType,
+                      }))
+                    }
+                    value={form.type}
+                  >
+                    {Object.entries(t.eventTypes).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t.fields.day}>
+                  <select
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, day: event.target.value as DayKey }))
+                    }
+                    value={form.day}
+                  >
+                    {dayOrder.map((day) => (
+                      <option key={day} value={day}>
+                        {t.days[day]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t.fields.startTime}>
+                  <input
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, startTime: event.target.value }))
+                    }
+                    type="time"
+                    value={form.startTime}
+                  />
+                </Field>
+                <Field label={t.fields.endTime}>
+                  <input
+                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, endTime: event.target.value }))
+                    }
+                    type="time"
+                    value={form.endTime}
+                  />
+                </Field>
+              </div>
+              <Field label={t.fields.location}>
+                <input
+                  className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, location: event.target.value }))
+                  }
+                  placeholder={language === "ru" ? "Кабинет, зал, онлайн" : "Room, hall, online"}
+                  value={form.location}
+                />
+              </Field>
+              <button
+                className="mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110"
+                onClick={addEvent}
+                type="button"
+              >
+                <SparkIcon />
+                {editingEventId ? uiText.saveChanges : t.saveAction}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="liquid-glass rounded-[22px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
+      <p className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[var(--accent)]">
+        {value}
+      </p>
+      <p className="mt-1 text-sm text-[color:var(--muted)]">{label}</p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: Readonly<{ label: string; children: React.ReactNode }>) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-semibold text-[color:var(--muted)]">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function StatusBanner({
+  tone,
+  icon,
+  text,
+}: Readonly<{ tone: "error" | "success"; icon: React.ReactNode; text: string }>) {
+  return (
+    <p
+      className={`inline-flex items-start gap-3 rounded-2xl px-4 py-3 text-sm ${
+        tone === "error"
+          ? "border border-[color:rgba(255,120,120,0.28)] bg-[color:rgba(255,120,120,0.08)] text-[color:#d45f6b]"
+          : "border border-[var(--line)] bg-[var(--card-surface)] text-[var(--foreground)]"
+      }`}
+    >
+      <span className="mt-0.5">{icon}</span>
+      <span>{text}</span>
+    </p>
+  );
+}
+
+function StatusPill({
+  icon,
+  label,
+  tone,
+}: Readonly<{ icon: React.ReactNode; label: string; tone: SaveState }>) {
+  const toneClass =
+    tone === "error"
+      ? "border-[color:rgba(255,120,120,0.28)] bg-[color:rgba(255,120,120,0.1)] text-[color:#d45f6b]"
+      : tone === "saving"
+        ? "border-[var(--line)] bg-[color:rgba(169,192,224,0.22)] text-[var(--accent)]"
+        : tone === "saved"
+          ? "border-[var(--line)] bg-[color:rgba(109,214,156,0.14)] text-[var(--foreground)]"
+          : "border-[var(--line)] bg-[var(--card-surface)] text-[var(--foreground)]";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold sm:text-sm ${toneClass}`}
+    >
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function iconProps() {
+  return {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+}
+
+function CloseIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c0 .67.39 1.28 1 1.55.17.07.35.1.55.1H21a2 2 0 1 1 0 4h-.09c-.67 0-1.28.39-1.55 1z" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M21 12a9 9 0 0 1-15.36 6.36" />
+      <path d="M3 12A9 9 0 0 1 18.36 5.64" />
+      <path d="M3 16v-4h4" />
+      <path d="M21 8v4h-4" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.72 3h16.92a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function CloudCheckIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M20 17.5a4.5 4.5 0 0 0-.5-8.97A6 6 0 0 0 8 7a5 5 0 0 0-.2 10" />
+      <path d="m9 15 2 2 4-4" />
+    </svg>
+  );
+}
+
+function DeviceIcon() {
+  return (
+    <svg {...iconProps()}>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
+function LoaderIcon() {
+  return (
+    <svg {...iconProps()} className="animate-spin">
+      <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function WhatsappIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M20 12a8 8 0 0 1-11.7 7.1L4 20l.95-4.1A8 8 0 1 1 20 12Z" />
+      <path d="M9.5 8.8c.2-.5.4-.5.7-.5h.6c.2 0 .4 0 .6.5l.5 1.3c.1.3.1.5-.1.7l-.5.6c-.1.2-.2.3 0 .5.2.4.8 1.3 1.8 2 .4.3.7.4.9.5.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.2.6c.2.1.4.2.4.4 0 .3-.1.7-.4 1a2.7 2.7 0 0 1-1.8.7c-.8 0-1.8-.3-3.3-1.5-1.7-1.3-2.8-3-3.2-3.8-.4-.8-.4-1.4-.1-1.9.2-.4.5-.8.7-1 .1-.2.2-.4.1-.6l-.5-1.1Z" />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M21 4 3.8 10.7c-1.2.5-1.2 1.2-.2 1.5l4.4 1.4 1.7 5.1c.2.6.1.8.8.8.5 0 .7-.2 1-.5l2.1-2 4.3 3.2c.8.4 1.3.2 1.5-.8L22 5.3C22.3 4.3 21.7 3.8 21 4Z" />
+      <path d="m8 13.2 8.8-5.5" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg {...iconProps()}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
