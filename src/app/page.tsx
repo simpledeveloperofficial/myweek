@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 
@@ -277,6 +277,7 @@ function isPristineForm(form: ReturnType<typeof createDefaultForm>) {
 }
 
 export default function Home() {
+  const addFormRef = useRef<HTMLDivElement | null>(null);
   const [language, setLanguage] = useState<Language>("ru");
   const [theme, setTheme] = useState<Theme>("light");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1020,6 +1021,17 @@ export default function Home() {
     }
   }
 
+  function openAddFormForDay(day: DayKey) {
+    setEditingEventId(null);
+    setForm(createDefaultForm(day));
+    setTimeout(() => {
+      addFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 40);
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 text-[var(--foreground)] sm:px-6 lg:px-10">
       {authOpen ? (
@@ -1321,10 +1333,10 @@ export default function Home() {
                     {t.appName}
                   </h1>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 lg:justify-self-end">
+                <div className="grid w-full gap-3 sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-self-end">
                   {isSupabaseConfigured ? (
                     <button
-                      className="liquid-glass inline-flex h-12 max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:max-w-[240px] sm:px-5"
+                      className="liquid-glass inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5"
                       onClick={() => {
                         setAuthError("");
                         setAuthNotice("");
@@ -1338,43 +1350,45 @@ export default function Home() {
                       {session?.user.email ?? authText.authCta}
                     </button>
                   ) : null}
-                  <button
-                    className="liquid-glass inline-flex h-12 items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:px-5"
-                    onClick={() => setSettingsOpen((current) => !current)}
-                    type="button"
-                  >
-                    <SettingsIcon />
-                    {t.settingsLabel}
-                  </button>
-                  <div className="relative inline-grid h-12 w-[132px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl sm:h-14 sm:w-[142px]">
-                    <span
-                      aria-hidden="true"
-                      className={`absolute top-1 h-12 w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
-                        language === "ru" ? "left-1" : "left-[calc(50%+3px)]"
-                      }`}
-                    />
+                  <div className="grid grid-cols-[minmax(0,1fr)_132px] gap-3 sm:flex sm:items-center">
                     <button
-                      className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
-                        language === "ru"
-                          ? "text-white"
-                          : "text-[color:var(--muted)] hover:text-[var(--accent)]"
-                      }`}
-                      onClick={() => setLanguage("ru")}
+                      className="liquid-glass inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:w-auto sm:px-5"
+                      onClick={() => setSettingsOpen((current) => !current)}
                       type="button"
                     >
-                      RU
+                      <SettingsIcon />
+                      <span className="truncate">{t.settingsLabel}</span>
                     </button>
-                    <button
-                      className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
-                        language === "en"
-                          ? "text-white"
-                          : "text-[color:var(--muted)] hover:text-[var(--accent)]"
-                      }`}
-                      onClick={() => setLanguage("en")}
-                      type="button"
-                    >
-                      EN
-                    </button>
+                    <div className="relative inline-grid h-12 w-[132px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl sm:h-14 sm:w-[142px]">
+                      <span
+                        aria-hidden="true"
+                        className={`absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
+                          language === "ru" ? "left-1" : "left-[calc(50%+3px)]"
+                        }`}
+                      />
+                      <button
+                        className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                          language === "ru"
+                            ? "text-white"
+                            : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                        }`}
+                        onClick={() => setLanguage("ru")}
+                        type="button"
+                      >
+                        RU
+                      </button>
+                      <button
+                        className={`relative z-10 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                          language === "en"
+                            ? "text-white"
+                            : "text-[color:var(--muted)] hover:text-[var(--accent)]"
+                        }`}
+                        onClick={() => setLanguage("en")}
+                        type="button"
+                      >
+                        EN
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1504,9 +1518,13 @@ export default function Home() {
                   </div>
                   <div className="grid gap-2">
                     {group.events.length === 0 ? (
-                      <p className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-3 py-4 text-sm font-medium text-[var(--empty-text)]">
+                      <button
+                        className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-3 py-4 text-left text-sm font-medium text-[var(--empty-text)] transition hover:border-[var(--focus)] hover:bg-[color:rgba(169,192,224,0.16)] hover:text-[var(--accent)]"
+                        onClick={() => openAddFormForDay(group.day)}
+                        type="button"
+                      >
                         {t.emptyDay}
-                      </p>
+                      </button>
                     ) : (
                       group.events.map((event) => (
                         <article
@@ -1559,7 +1577,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+          <div
+            ref={addFormRef}
+            className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6"
+          >
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
                 {editingEventId ? uiText.editModeTitle : t.addTitle}
