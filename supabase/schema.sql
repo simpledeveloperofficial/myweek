@@ -19,6 +19,7 @@ create table if not exists public.schedule_events (
   start_time text not null,
   end_time text not null,
   location text not null default '',
+  notes text not null default '',
   created_at timestamptz not null default now()
 );
 

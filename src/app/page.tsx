@@ -26,6 +26,7 @@ type ScheduleEvent = {
   startTime: string;
   endTime: string;
   location: string;
+  notes: string;
 };
 
 type Copy = {
@@ -61,6 +62,7 @@ type Copy = {
     startTime: string;
     endTime: string;
     location: string;
+    notes: string;
   };
   eventTypes: Record<EventType, string>;
   days: Record<DayKey, string>;
@@ -107,6 +109,7 @@ const copy: Record<Language, Copy> = {
       startTime: "Начало",
       endTime: "Конец",
       location: "Кабинет / место",
+      notes: "Заметка",
     },
     eventTypes: {
       school: "Школа",
@@ -158,6 +161,7 @@ const copy: Record<Language, Copy> = {
       startTime: "Start",
       endTime: "End",
       location: "Room / place",
+      notes: "Note",
     },
     eventTypes: {
       school: "School",
@@ -186,6 +190,7 @@ const initialEvents: ScheduleEvent[] = [
     startTime: "08:00",
     endTime: "08:45",
     location: "204",
+    notes: "",
   },
   {
     id: "0b0a237c-9586-4b78-a20d-1324141d9c86",
@@ -195,6 +200,7 @@ const initialEvents: ScheduleEvent[] = [
     startTime: "17:00",
     endTime: "18:00",
     location: "Online",
+    notes: "",
   },
   {
     id: "aa8a5f4f-28ae-4999-9e07-946e39f81b4d",
@@ -204,6 +210,7 @@ const initialEvents: ScheduleEvent[] = [
     startTime: "16:30",
     endTime: "18:00",
     location: "Field A",
+    notes: "",
   },
   {
     id: "30d67e72-f56e-4974-b69a-882214f42d7f",
@@ -213,6 +220,7 @@ const initialEvents: ScheduleEvent[] = [
     startTime: "15:00",
     endTime: "16:20",
     location: "Studio",
+    notes: "",
   },
 ];
 
@@ -227,6 +235,7 @@ function isUuid(value: string) {
 function normalizeEvents(events: ScheduleEvent[]) {
   return events.map((event) => ({
     ...event,
+    notes: event.notes ?? "",
     id:
       isUuid(event.id) && !legacyInitialEventIds.has(event.id)
         ? event.id
@@ -263,6 +272,7 @@ function createDefaultForm(day: DayKey = "monday") {
     startTime: "08:00",
     endTime: "08:45",
     location: "",
+    notes: "",
   };
 }
 
@@ -272,7 +282,8 @@ function isPristineForm(form: ReturnType<typeof createDefaultForm>) {
     form.type === "school" &&
     form.startTime === "08:00" &&
     form.endTime === "08:45" &&
-    form.location === ""
+    form.location === "" &&
+    form.notes === ""
   );
 }
 
@@ -468,7 +479,7 @@ export default function Home() {
 
       const { data, error } = await supabase
         .from("schedule_events")
-        .select("id, title, type, day, start_time, end_time, location")
+        .select("id, title, type, day, start_time, end_time, location, notes")
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
@@ -494,6 +505,7 @@ export default function Home() {
           startTime: event.start_time,
           endTime: event.end_time,
           location: event.location,
+          notes: event.notes ?? "",
         }));
 
         startTransition(() => {
@@ -553,6 +565,7 @@ export default function Home() {
         start_time: event.startTime,
         end_time: event.endTime,
         location: event.location,
+        notes: event.notes,
       }));
 
       if (events.length === 0) {
@@ -1029,6 +1042,7 @@ export default function Home() {
                 startTime: form.startTime,
                 endTime: form.endTime,
                 location: form.location.trim(),
+                notes: form.notes.trim(),
               }
             : event,
         ),
@@ -1043,6 +1057,7 @@ export default function Home() {
         startTime: form.startTime,
         endTime: form.endTime,
         location: form.location.trim(),
+        notes: form.notes.trim(),
       };
 
       setEvents((current) => [...current, nextEvent]);
@@ -1060,6 +1075,7 @@ export default function Home() {
       startTime: event.startTime,
       endTime: event.endTime,
       location: event.location,
+      notes: event.notes,
     });
   }
 
@@ -1531,6 +1547,11 @@ export default function Home() {
                             {t.eventTypes[event.type]}
                             {event.location ? ` • ${event.location}` : ""}
                           </p>
+                          {event.notes ? (
+                            <p className="mt-2 text-sm leading-6 text-[color:var(--muted-soft)]">
+                              {event.notes}
+                            </p>
+                          ) : null}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <p className="glass-badge rounded-full px-3 py-1 text-xs font-semibold">
@@ -1622,6 +1643,11 @@ export default function Home() {
                                 {t.eventTypes[event.type]}
                                 {event.location ? ` • ${event.location}` : ""}
                               </p>
+                              {event.notes ? (
+                                <p className="mt-2 text-sm leading-6 text-[color:var(--muted-soft)]">
+                                  {event.notes}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="glass-badge rounded-full px-3 py-1 text-xs font-semibold">
@@ -1760,6 +1786,21 @@ export default function Home() {
                   }
                   placeholder={language === "ru" ? "Кабинет, зал, онлайн" : "Room, hall, online"}
                   value={form.location}
+                />
+              </Field>
+              <Field label={t.fields.notes}>
+                <textarea
+                  className="glass-field min-h-24 w-full rounded-2xl px-4 py-3 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 resize-none"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, notes: event.target.value }))
+                  }
+                  placeholder={
+                    language === "ru"
+                      ? "Например: взять тетрадь, форма на спорт, ссылка на Zoom"
+                      : "For example: bring notebook, sports uniform, Zoom link"
+                  }
+                  rows={3}
+                  value={form.notes}
                 />
               </Field>
               <button
