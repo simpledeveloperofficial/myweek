@@ -1627,34 +1627,36 @@ export default function Home() {
                       group.events.map((event) => (
                         <article
                           key={event.id}
-                          className="liquid-glass glass-lift animate-fade-up grid gap-3 rounded-2xl border border-[var(--line-soft)] bg-[var(--event-surface)] px-3 py-3 transition sm:grid-cols-[88px_1fr]"
+                          className="liquid-glass glass-lift animate-fade-up grid grid-cols-[72px_1fr] gap-3 rounded-2xl border border-[var(--line-soft)] bg-[var(--event-surface)] px-3 py-3 transition sm:grid-cols-[88px_1fr] sm:px-4"
                         >
-                          <div className="text-sm font-semibold text-[color:var(--muted)]">
+                          <div className="text-xs font-semibold text-[color:var(--muted)] sm:text-sm">
                             {event.startTime}
                             <br />
-                            <span className="text-xs font-medium text-[color:var(--muted-soft)]">
+                            <span className="text-[11px] font-medium text-[color:var(--muted-soft)] sm:text-xs">
                               {event.endTime}
                             </span>
                           </div>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="font-semibold text-[var(--foreground)]">{event.title}</p>
-                              <p className="mt-1 text-sm text-[color:var(--muted)]">
+                          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[var(--foreground)] sm:text-base">
+                                {event.title}
+                              </p>
+                              <p className="mt-1 text-xs text-[color:var(--muted)] sm:text-sm">
                                 {t.eventTypes[event.type]}
                                 {event.location ? ` • ${event.location}` : ""}
                               </p>
                               {event.notes ? (
-                                <p className="mt-2 text-sm leading-6 text-[color:var(--muted-soft)]">
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[color:var(--muted-soft)] sm:mt-2 sm:text-sm sm:leading-6">
                                   {event.notes}
                                 </p>
                               ) : null}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="glass-badge rounded-full px-3 py-1 text-xs font-semibold">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              <span className="glass-badge rounded-full px-2.5 py-1 text-[11px] font-semibold sm:px-3 sm:text-xs">
                                 {t.eventTypes[event.type]}
                               </span>
                               <button
-                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
+                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition sm:px-3 sm:text-xs"
                                 onClick={() => startEditing(event)}
                                 type="button"
                               >
@@ -1662,7 +1664,7 @@ export default function Home() {
                                 {uiText.edit}
                               </button>
                               <button
-                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
+                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition sm:px-3 sm:text-xs"
                                 onClick={() => deleteEvent(event.id)}
                                 type="button"
                               >
