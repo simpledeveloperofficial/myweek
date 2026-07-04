@@ -520,6 +520,7 @@ export default function Home() {
     }
 
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(themeStorageKey, theme);
   }, [theme, isHydrated]);
 
@@ -1092,12 +1093,12 @@ export default function Home() {
         <div className="fixed inset-0 z-50">
           <button
             aria-label="Close auth"
-            className="absolute inset-0 bg-[color:rgba(7,20,47,0.3)] backdrop-blur-md"
+            className="absolute inset-0 glass-overlay"
             onClick={() => setAuthOpen(false)}
             type="button"
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            <div className="pointer-events-auto liquid-glass animate-scale-in w-full max-w-md rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 shadow-[0_40px_120px_rgba(3,9,27,0.34)] sm:p-7">
+            <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in w-full max-w-md rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
@@ -1126,7 +1127,7 @@ export default function Home() {
                 {isRecoveringPassword ? null : (
                   <>
                     <button
-                      className="inline-flex h-12 items-center justify-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 text-sm font-semibold text-[var(--foreground)] transition hover:-translate-y-0.5 hover:bg-[color:rgba(169,192,224,0.18)] disabled:cursor-not-allowed disabled:opacity-70"
+                      className="glass-action inline-flex h-12 items-center justify-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 text-sm font-semibold text-[var(--foreground)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                       disabled={authLoading}
                       onClick={signInWithGoogle}
                       type="button"
@@ -1144,7 +1145,7 @@ export default function Home() {
                 <Field label={authText.authEmail}>
                   <input
                     autoComplete="email"
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition"
                     onChange={(event) => setAuthEmail(event.target.value)}
                     placeholder="name@example.com"
                     type="email"
@@ -1161,7 +1162,7 @@ export default function Home() {
                           ? "current-password"
                           : "new-password"
                     }
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition"
                     onChange={(event) => setAuthPassword(event.target.value)}
                     placeholder="••••••••"
                     type="password"
@@ -1176,7 +1177,7 @@ export default function Home() {
                   <StatusBanner tone="success" icon={<CheckIcon />} text={authNotice} />
                 ) : null}
                 <button
-                  className="mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="glass-primary mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent-strong)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={
                     authLoading ||
                     (!isRecoveringPassword && !authEmail.trim()) ||
@@ -1231,12 +1232,12 @@ export default function Home() {
         <div className="fixed inset-0 z-40">
           <button
             aria-label="Close settings"
-            className="absolute inset-0 bg-[color:rgba(7,20,47,0.28)] backdrop-blur-md"
+            className="absolute inset-0 glass-overlay"
             onClick={() => setSettingsOpen(false)}
             type="button"
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            <div className="pointer-events-auto liquid-glass animate-scale-in w-full max-w-xl rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 shadow-[0_40px_120px_rgba(3,9,27,0.34)] sm:p-7">
+            <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in w-full max-w-xl rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
@@ -1273,7 +1274,7 @@ export default function Home() {
                             {authText.authSyncCloud}
                           </p>
                           <button
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                            className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                             onClick={signOut}
                             type="button"
                           >
@@ -1287,7 +1288,7 @@ export default function Home() {
                             {authText.authSyncGuest}
                           </p>
                           <button
-                            className="inline-flex h-11 items-center justify-center rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                            className="glass-action inline-flex h-11 items-center justify-center rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                             onClick={() => {
                               setSettingsOpen(false);
                               setIsRecoveringPassword(false);
@@ -1315,10 +1316,10 @@ export default function Home() {
                 <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
                   {t.themeLabel}
                 </p>
-                <div className="relative inline-grid h-14 w-[220px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl">
+                <div className="glass-segmented relative inline-grid h-14 w-[220px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 backdrop-blur-xl">
                   <span
                     aria-hidden="true"
-                    className={`absolute top-1 h-12 w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
+                    className={`glass-segmented-thumb absolute top-1 h-12 w-[calc(50%-4px)] rounded-full transition-all duration-300 ease-out ${
                       theme === "light" ? "left-1" : "left-[calc(50%+3px)]"
                     }`}
                   />
@@ -1356,7 +1357,7 @@ export default function Home() {
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <a
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                       href={supportWhatsapp}
                       rel="noreferrer"
                       target="_blank"
@@ -1365,7 +1366,7 @@ export default function Home() {
                       {supportLinksText.whatsapp}
                     </a>
                     <a
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                       href={supportTelegram}
                       rel="noreferrer"
                       target="_blank"
@@ -1374,7 +1375,7 @@ export default function Home() {
                       {supportLinksText.telegram}
                     </a>
                     <a
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                      className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                       href={`mailto:${supportEmail}`}
                     >
                       <MailIcon />
@@ -1388,12 +1389,12 @@ export default function Home() {
         </div>
       ) : null}
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="liquid-glass overflow-hidden rounded-[28px] border border-[var(--line)] bg-[var(--surface)]">
+        <section className="liquid-glass glass-hero overflow-hidden rounded-[28px] border border-[var(--line)] bg-[var(--surface)]">
           <div className="grid gap-8 px-5 py-6 sm:px-8 lg:grid-cols-[1.35fr_0.65fr] lg:px-10 lg:py-10">
             <div className="flex flex-col gap-5">
               <div className="grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-start">
                 <div className="flex flex-col gap-3 lg:items-start">
-                  <p className="inline-flex w-fit rounded-full bg-[color:rgba(169,192,224,0.28)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)] sm:text-xs">
+                  <p className="glass-badge inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] sm:text-xs">
                     {t.badge}
                   </p>
                   <p className="text-sm font-semibold capitalize text-[color:var(--muted)]">
@@ -1408,7 +1409,7 @@ export default function Home() {
                 <div className="grid w-full gap-3 sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-self-end">
                   {isSupabaseConfigured ? (
                     <button
-                      className="liquid-glass inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5"
+                      className="liquid-glass glass-lift inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--chip-surface)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5"
                       onClick={() => {
                         setAuthError("");
                         setAuthNotice("");
@@ -1424,17 +1425,17 @@ export default function Home() {
                   ) : null}
                   <div className="grid grid-cols-[minmax(0,1fr)_132px] gap-3 sm:flex sm:items-center">
                     <button
-                      className="liquid-glass inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-strong)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:-translate-y-0.5 hover:brightness-105 sm:h-14 sm:w-auto sm:px-5"
+                      className="liquid-glass glass-lift inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:brightness-105 sm:h-14 sm:w-auto sm:px-5"
                       onClick={() => setSettingsOpen((current) => !current)}
                       type="button"
                     >
                       <SettingsIcon />
                       <span className="truncate">{t.settingsLabel}</span>
                     </button>
-                    <div className="relative inline-grid h-12 w-[132px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl sm:h-14 sm:w-[142px]">
+                    <div className="glass-segmented relative inline-grid h-12 w-[132px] grid-cols-2 rounded-full border border-[var(--line)] bg-[var(--chip-surface)] p-1 backdrop-blur-xl sm:h-14 sm:w-[142px]">
                       <span
                         aria-hidden="true"
-                        className={`absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-full bg-[var(--accent)] shadow-[0_14px_30px_rgba(14,47,118,0.32)] transition-all duration-300 ease-out ${
+                        className={`glass-segmented-thumb absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-full transition-all duration-300 ease-out ${
                           language === "ru" ? "left-1" : "left-[calc(50%+3px)]"
                         }`}
                       />
@@ -1500,7 +1501,7 @@ export default function Home() {
                 <StatCard value={totalHours} label={uiText.hoursToday} />
               </div>
             </div>
-            <aside className="liquid-glass rounded-[24px] border border-[var(--line)] bg-[var(--surface-strong)] p-5">
+            <aside className="liquid-glass glass-lift rounded-[24px] border border-[var(--line)] bg-[var(--surface-strong)] p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
@@ -1508,7 +1509,7 @@ export default function Home() {
                   </p>
                   <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">{t.focusHint}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:rgba(169,192,224,0.34)] text-lg font-bold text-[var(--accent)]">
+                <div className="glass-badge flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-bold">
                   {t.days[todayKey]}
                 </div>
               </div>
@@ -1521,7 +1522,7 @@ export default function Home() {
                   todayEvents.map((event) => (
                     <article
                       key={event.id}
-                      className="liquid-glass animate-fade-up rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 py-3 transition hover:-translate-y-0.5"
+                      className="liquid-glass glass-lift animate-fade-up rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 py-3 transition"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1532,12 +1533,12 @@ export default function Home() {
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <p className="rounded-full bg-[color:rgba(169,192,224,0.18)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                          <p className="glass-badge rounded-full px-3 py-1 text-xs font-semibold">
                             {event.startTime} - {event.endTime}
                           </p>
                           <div className="flex flex-wrap justify-end gap-2">
                             <button
-                              className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                              className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
                               onClick={() => startEditing(event)}
                               type="button"
                             >
@@ -1545,7 +1546,7 @@ export default function Home() {
                               {uiText.edit}
                             </button>
                             <button
-                              className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                              className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
                               onClick={() => deleteEvent(event.id)}
                               type="button"
                             >
@@ -1567,7 +1568,7 @@ export default function Home() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+          <div className="liquid-glass glass-lift rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
@@ -1582,20 +1583,20 @@ export default function Home() {
               {groupedEvents.map((group) => (
                 <div
                   key={group.day}
-                  className="liquid-glass rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4"
+                  className="liquid-glass glass-lift rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4"
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <h4 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[var(--accent)]">
                       {t.days[group.day]}
                     </h4>
-                    <span className="text-sm text-[color:rgba(14,47,118,0.42)]">
+                    <span className="text-sm text-[color:var(--muted-soft)]">
                       {group.events.length.toString().padStart(2, "0")}
                     </span>
                   </div>
                   <div className="grid gap-2">
                     {group.events.length === 0 ? (
                       <button
-                        className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-3 py-4 text-left text-sm font-medium text-[var(--empty-text)] transition hover:border-[var(--focus)] hover:bg-[color:rgba(169,192,224,0.16)] hover:text-[var(--accent)]"
+                        className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-3 py-4 text-left text-sm font-medium text-[var(--empty-text)] transition hover:border-[var(--focus)] hover:bg-[var(--button-hover)] hover:text-[var(--accent)]"
                         onClick={() => openAddFormForDay(group.day)}
                         type="button"
                       >
@@ -1605,12 +1606,12 @@ export default function Home() {
                       group.events.map((event) => (
                         <article
                           key={event.id}
-                          className="liquid-glass animate-fade-up grid gap-3 rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--event-surface)] px-3 py-3 transition hover:-translate-y-0.5 sm:grid-cols-[88px_1fr]"
+                          className="liquid-glass glass-lift animate-fade-up grid gap-3 rounded-2xl border border-[var(--line-soft)] bg-[var(--event-surface)] px-3 py-3 transition sm:grid-cols-[88px_1fr]"
                         >
                           <div className="text-sm font-semibold text-[color:var(--muted)]">
                             {event.startTime}
                             <br />
-                            <span className="text-xs font-medium text-[color:rgba(14,47,118,0.46)]">
+                            <span className="text-xs font-medium text-[color:var(--muted-soft)]">
                               {event.endTime}
                             </span>
                           </div>
@@ -1623,11 +1624,11 @@ export default function Home() {
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-[color:rgba(169,192,224,0.28)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                              <span className="glass-badge rounded-full px-3 py-1 text-xs font-semibold">
                                 {t.eventTypes[event.type]}
                               </span>
                               <button
-                                className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
                                 onClick={() => startEditing(event)}
                                 type="button"
                               >
@@ -1635,7 +1636,7 @@ export default function Home() {
                                 {uiText.edit}
                               </button>
                               <button
-                                className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                                className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
                                 onClick={() => deleteEvent(event.id)}
                                 type="button"
                               >
@@ -1655,7 +1656,7 @@ export default function Home() {
 
           <div
             ref={addFormRef}
-            className="liquid-glass rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6"
+            className="liquid-glass glass-lift rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6"
           >
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
@@ -1663,7 +1664,7 @@ export default function Home() {
               </h3>
               {editingEventId ? (
                 <button
-                  className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[color:rgba(169,192,224,0.2)]"
+                  className="glass-action rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--accent)] transition"
                   onClick={cancelEditing}
                   type="button"
                 >
@@ -1686,7 +1687,7 @@ export default function Home() {
               </div>
               <Field label={t.fields.title}>
                 <input
-                  className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                  className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                   onChange={(event) =>
                     setForm((current) => ({ ...current, title: event.target.value }))
                   }
@@ -1697,7 +1698,7 @@ export default function Home() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t.fields.type}>
                   <select
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
@@ -1715,7 +1716,7 @@ export default function Home() {
                 </Field>
                 <Field label={t.fields.day}>
                   <select
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                     onChange={(event) =>
                       setForm((current) => ({ ...current, day: event.target.value as DayKey }))
                     }
@@ -1732,7 +1733,7 @@ export default function Home() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t.fields.startTime}>
                   <input
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                     onChange={(event) =>
                       setForm((current) => ({ ...current, startTime: event.target.value }))
                     }
@@ -1742,7 +1743,7 @@ export default function Home() {
                 </Field>
                 <Field label={t.fields.endTime}>
                   <input
-                    className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                     onChange={(event) =>
                       setForm((current) => ({ ...current, endTime: event.target.value }))
                     }
@@ -1753,7 +1754,7 @@ export default function Home() {
               </div>
               <Field label={t.fields.location}>
                 <input
-                  className="h-12 w-full rounded-2xl border border-[color:rgba(255,255,255,0.22)] bg-[var(--field-surface)] px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--focus)] focus:bg-[var(--field-surface-focus)]"
+                  className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
                   onChange={(event) =>
                     setForm((current) => ({ ...current, location: event.target.value }))
                   }
@@ -1762,7 +1763,7 @@ export default function Home() {
                 />
               </Field>
               <button
-                className="mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110"
+                className="glass-primary mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent-strong)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110"
                 onClick={addEvent}
                 type="button"
               >
@@ -1779,7 +1780,7 @@ export default function Home() {
 
 function StatCard({ value, label }: { value: number; label: string }) {
   return (
-    <div className="liquid-glass rounded-[22px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
+    <div className="liquid-glass glass-lift rounded-[22px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
       <p className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[var(--accent)]">
         {value}
       </p>
@@ -1828,7 +1829,7 @@ function StatusPill({
     tone === "error"
       ? "border-[color:rgba(255,120,120,0.28)] bg-[color:rgba(255,120,120,0.1)] text-[color:#d45f6b]"
       : tone === "saving"
-        ? "border-[var(--line)] bg-[color:rgba(169,192,224,0.22)] text-[var(--accent)]"
+        ? "border-[var(--line)] bg-[var(--accent-soft)] text-[var(--accent)]"
         : tone === "saved"
           ? "border-[var(--line)] bg-[color:rgba(109,214,156,0.14)] text-[var(--foreground)]"
           : "border-[var(--line)] bg-[var(--card-surface)] text-[var(--foreground)]";

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -30,6 +31,18 @@ export const viewport: Viewport = {
   themeColor: "#0e2f76",
 };
 
+const themeBootstrap = `
+  try {
+    var storedTheme = window.localStorage.getItem("myweek-theme-v1");
+    var theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  } catch (error) {
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.style.colorScheme = "light";
+  }
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,6 +54,11 @@ export default function RootLayout({
       className={`${manrope.variable} ${spaceGrotesk.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {themeBootstrap}
+        </Script>
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
       </body>
