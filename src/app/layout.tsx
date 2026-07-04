@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,14 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "MyWeek",
   description: "School planner for grades 5-11 with bilingual scheduling.",
+  icons: {
+    icon: "/icon",
+    apple: "/apple-icon",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0e2f76",
 };
 
 export default function RootLayout({
