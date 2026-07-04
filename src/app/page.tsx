@@ -779,6 +779,16 @@ export default function Home() {
             "If something breaks or you have an idea, you can contact support directly.",
           supportAction: "Contact support",
         };
+  const oauthText =
+    language === "ru"
+      ? {
+          google: "Войти через Google",
+          or: "или",
+        }
+      : {
+          google: "Continue with Google",
+          or: "or",
+        };
   const supportLinksText =
     language === "ru"
       ? {
@@ -971,6 +981,36 @@ export default function Home() {
     setAuthError("");
   }
 
+  async function signInWithGoogle() {
+    if (!isSupabaseConfigured) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setAuthError(authText.authNoSupabase);
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+    }
+  }
+
   function addEvent() {
     if (!form.title.trim()) {
       return;
@@ -1083,6 +1123,24 @@ export default function Home() {
                 </button>
               </div>
               <div className="mt-6 grid gap-4">
+                {isRecoveringPassword ? null : (
+                  <>
+                    <button
+                      className="inline-flex h-12 items-center justify-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card-surface)] px-4 text-sm font-semibold text-[var(--foreground)] transition hover:-translate-y-0.5 hover:bg-[color:rgba(169,192,224,0.18)] disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={authLoading}
+                      onClick={signInWithGoogle}
+                      type="button"
+                    >
+                      <GoogleIcon />
+                      {oauthText.google}
+                    </button>
+                    <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
+                      <span className="h-px flex-1 bg-[var(--line)]" />
+                      {oauthText.or}
+                      <span className="h-px flex-1 bg-[var(--line)]" />
+                    </div>
+                  </>
+                )}
                 <Field label={authText.authEmail}>
                   <input
                     autoComplete="email"
@@ -1927,6 +1985,29 @@ function CalendarIcon() {
       <path d="M16 2v4" />
       <rect x="3" y="5" width="18" height="16" rx="2" />
       <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M21.8 12.23c0-.77-.07-1.5-.2-2.2H12v4.17h5.49a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.05-4.39 3.05-7.61Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 22c2.76 0 5.08-.91 6.78-2.46l-3.3-2.56c-.91.61-2.08.97-3.48.97-2.67 0-4.94-1.8-5.75-4.22H2.84v2.64A10 10 0 0 0 12 22Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.25 13.73A5.96 5.96 0 0 1 5.93 12c0-.6.11-1.18.32-1.73V7.63H2.84A10 10 0 0 0 2 12c0 1.61.38 3.13 1.04 4.37l3.21-2.64Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 6.05c1.5 0 2.84.52 3.9 1.54l2.92-2.92C17.07 3.03 14.75 2 12 2A10 10 0 0 0 2.84 7.63l3.41 2.64C7.06 7.85 9.33 6.05 12 6.05Z"
+        fill="#EA4335"
+      />
     </svg>
   );
 }
