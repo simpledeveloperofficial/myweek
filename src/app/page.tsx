@@ -30,6 +30,17 @@ type ScheduleEvent = {
   homeworkDone: boolean;
 };
 
+type MonthlyPointsSnapshot = {
+  monthKey: string;
+  points: number;
+};
+
+type FriendEntry = {
+  id: string;
+  nickname: string;
+  points: number;
+};
+
 type Copy = {
   appName: string;
   badge: string;
@@ -71,6 +82,7 @@ type Copy = {
 
 const storageKey = "myweek-schedule-v1";
 const themeStorageKey = "myweek-theme-v1";
+const pointsStorageKey = "myweek-monthly-points-v1";
 const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "simpledesignerdd@gmail.com";
 const supportWhatsapp = "https://wa.me/77478687825";
 const supportTelegram = "https://t.me/Dalernigmatov777";
@@ -270,6 +282,41 @@ function getTodayKey(): DayKey {
   return dayOrder[(index + 6) % 7];
 }
 
+function getMonthKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}-01`;
+}
+
+function clampPoints(points: number) {
+  return Math.max(0, points);
+}
+
+function createSuggestedNickname(session: Session | null) {
+  const fromMetadata =
+    typeof session?.user.user_metadata?.nickname === "string"
+      ? session.user.user_metadata.nickname.trim()
+      : typeof session?.user.user_metadata?.full_name === "string"
+        ? session.user.user_metadata.full_name.trim()
+        : "";
+
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  const emailPrefix = session?.user.email?.split("@")[0]?.trim() ?? "";
+
+  if (emailPrefix) {
+    return emailPrefix.slice(0, 24);
+  }
+
+  if (!session?.user.id) {
+    return "";
+  }
+
+  return `user_${session.user.id.slice(0, 6)}`;
+}
+
 function createDefaultForm(day: DayKey = "monday") {
   return {
     title: "",
@@ -312,6 +359,13 @@ export default function Home() {
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
   const [nicknameNotice, setNicknameNotice] = useState("");
+  const [monthlyPoints, setMonthlyPoints] = useState(0);
+  const [friends, setFriends] = useState<FriendEntry[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendNickname, setFriendNickname] = useState("");
+  const [friendAddLoading, setFriendAddLoading] = useState(false);
+  const [friendError, setFriendError] = useState("");
+  const [friendNotice, setFriendNotice] = useState("");
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("local");
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
@@ -322,6 +376,7 @@ export default function Home() {
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(themeStorageKey);
     const stored = window.localStorage.getItem(storageKey);
+    const storedPoints = window.localStorage.getItem(pointsStorageKey);
 
     if (storedTheme === "light" || storedTheme === "dark") {
       startTransition(() => {
@@ -343,6 +398,22 @@ export default function Home() {
       }
     }
 
+    if (storedPoints) {
+      try {
+        const parsed = JSON.parse(storedPoints) as MonthlyPointsSnapshot;
+
+        if (parsed?.monthKey === getMonthKey()) {
+          startTransition(() => {
+            setMonthlyPoints(clampPoints(parsed.points ?? 0));
+          });
+        } else {
+          window.localStorage.removeItem(pointsStorageKey);
+        }
+      } catch {
+        window.localStorage.removeItem(pointsStorageKey);
+      }
+    }
+
     startTransition(() => {
       setIsHydrated(true);
     });
@@ -358,6 +429,8 @@ export default function Home() {
     if (!supabase) {
       return;
     }
+
+    const supabaseClient = supabase;
 
     let active = true;
 
@@ -407,10 +480,14 @@ export default function Home() {
     }
 
     window.localStorage.setItem(storageKey, JSON.stringify(events));
+    window.localStorage.setItem(
+      pointsStorageKey,
+      JSON.stringify({ monthKey: getMonthKey(), points: monthlyPoints }),
+    );
     startTransition(() => {
       setSaveState("local");
     });
-  }, [events, isHydrated, session]);
+  }, [events, isHydrated, monthlyPoints, session]);
 
   useEffect(() => {
     if (!isHydrated || session?.user.id) {
@@ -444,12 +521,7 @@ export default function Home() {
   }, [isHydrated, session]);
 
   useEffect(() => {
-    const nextNickname =
-      typeof session?.user.user_metadata?.nickname === "string"
-        ? session.user.user_metadata.nickname
-        : typeof session?.user.user_metadata?.full_name === "string"
-          ? session.user.user_metadata.full_name
-          : "";
+    const nextNickname = createSuggestedNickname(session);
 
     startTransition(() => {
       setNicknameDraft(nextNickname);
@@ -502,11 +574,19 @@ export default function Home() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("schedule_events")
-        .select("id, title, type, day, start_time, end_time, location, notes, homework_done")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
+      const [{ data, error }, { data: pointsRow, error: pointsError }] = await Promise.all([
+        supabase
+          .from("schedule_events")
+          .select("id, title, type, day, start_time, end_time, location, notes, homework_done")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("monthly_points")
+          .select("points")
+          .eq("user_id", userId)
+          .eq("month_key", getMonthKey())
+          .maybeSingle(),
+      ]);
 
       if (cancelled) {
         return;
@@ -536,6 +616,14 @@ export default function Home() {
 
         startTransition(() => {
           setEvents(normalizeEvents(remoteEvents));
+        });
+      }
+
+      if (pointsError) {
+        console.error("Failed to load monthly points from Supabase", pointsError);
+      } else {
+        startTransition(() => {
+          setMonthlyPoints(clampPoints(pointsRow?.points ?? 0));
         });
       }
 
@@ -581,6 +669,179 @@ export default function Home() {
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [authOpen, isHydrated, settingsOpen]);
+
+  useEffect(() => {
+    const userId = session?.user.id ?? null;
+
+    if (!isHydrated || !userId || !isSupabaseConfigured) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    const supabaseClient = supabase;
+
+    const nickname = createSuggestedNickname(session);
+
+    if (!nickname) {
+      return;
+    }
+
+    void supabaseClient.from("profiles").upsert(
+      {
+        id: userId,
+        nickname,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+  }, [isHydrated, session]);
+
+  useEffect(() => {
+    const userId = session?.user.id ?? null;
+
+    if (!isHydrated || !userId || loadedUserId !== userId || !isSupabaseConfigured) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    const supabaseClient = supabase;
+
+    let cancelled = false;
+
+    async function syncMonthlyPoints() {
+      const { error } = await supabaseClient.from("monthly_points").upsert(
+        {
+          user_id: userId,
+          month_key: getMonthKey(),
+          points: clampPoints(monthlyPoints),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,month_key" },
+      );
+
+      if (error && !cancelled) {
+        console.error("Failed to sync monthly points to Supabase", error);
+      }
+    }
+
+    void syncMonthlyPoints();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, loadedUserId, monthlyPoints, session]);
+
+  useEffect(() => {
+    const userId = session?.user.id ?? null;
+
+    if (!isHydrated || !userId || !isSupabaseConfigured) {
+      startTransition(() => {
+        setFriends([]);
+        setFriendsLoading(false);
+      });
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    const supabaseClient = supabase;
+
+    let cancelled = false;
+
+    async function loadFriends() {
+      startTransition(() => {
+        setFriendsLoading(true);
+      });
+
+      const { data: links, error: friendshipsError } = await supabaseClient
+        .from("friendships")
+        .select("friend_user_id")
+        .eq("user_id", userId);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (friendshipsError) {
+        console.error("Failed to load friendships", friendshipsError);
+        startTransition(() => {
+          setFriends([]);
+          setFriendsLoading(false);
+        });
+        return;
+      }
+
+      const friendIds = (links ?? []).map((item) => item.friend_user_id);
+
+      if (friendIds.length === 0) {
+        startTransition(() => {
+          setFriends([]);
+          setFriendsLoading(false);
+        });
+        return;
+      }
+
+      const [{ data: profiles, error: profilesError }, { data: pointsRows, error: pointsError }] =
+        await Promise.all([
+          supabaseClient.from("profiles").select("id, nickname").in("id", friendIds),
+          supabaseClient
+            .from("monthly_points")
+            .select("user_id, points")
+            .eq("month_key", getMonthKey())
+            .in("user_id", friendIds),
+        ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (profilesError || pointsError) {
+        console.error("Failed to load friend profiles or points", {
+          profilesError,
+          pointsError,
+        });
+        startTransition(() => {
+          setFriends([]);
+          setFriendsLoading(false);
+        });
+        return;
+      }
+
+      const pointsMap = new Map((pointsRows ?? []).map((row) => [row.user_id, row.points]));
+      const nextFriends = (profiles ?? [])
+        .map((profile) => ({
+          id: profile.id,
+          nickname: profile.nickname,
+          points: clampPoints(pointsMap.get(profile.id) ?? 0),
+        }))
+        .sort((a, b) => b.points - a.points || a.nickname.localeCompare(b.nickname));
+
+      startTransition(() => {
+        setFriends(nextFriends);
+        setFriendsLoading(false);
+      });
+    }
+
+    void loadFriends();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, monthlyPoints, session]);
 
   useEffect(() => {
     const userId = session?.user.id ?? null;
@@ -745,7 +1006,7 @@ export default function Home() {
       ? {
           lessonsToday: "уроков сегодня",
           activitiesToday: "активностей сегодня",
-          pointsToday: "очков за ДЗ",
+          pointsToday: "очков за месяц",
           hoursToday: "часов сегодня",
           edit: "Изменить",
           delete: "Удалить",
@@ -758,7 +1019,7 @@ export default function Home() {
       : {
           lessonsToday: "lessons today",
           activitiesToday: "activities today",
-          pointsToday: "homework points",
+          pointsToday: "points this month",
           hoursToday: "hours today",
           edit: "Edit",
           delete: "Delete",
@@ -798,6 +1059,7 @@ export default function Home() {
           nicknameHint: "Он будет показываться в аккаунте вместо почты, где это уместно.",
           nicknameSave: "Сохранить никнейм",
           nicknameSaved: "Никнейм сохранен.",
+          nicknameRules: "От 3 до 24 символов. Лучше без пробелов.",
         }
       : {
           account: "Account",
@@ -827,6 +1089,35 @@ export default function Home() {
           nicknameHint: "It will appear in your account area instead of email where appropriate.",
           nicknameSave: "Save nickname",
           nicknameSaved: "Nickname saved.",
+          nicknameRules: "Use 3 to 24 characters. Better without spaces.",
+        };
+  const friendsText =
+    language === "ru"
+      ? {
+          title: "Друзья",
+          hint: "Добавь друга по никнейму и сравнивай месячные очки за выполненное ДЗ.",
+          nickname: "Никнейм друга",
+          placeholder: "Например, Daler",
+          add: "Добавить друга",
+          added: "Друг добавлен.",
+          empty: "Пока друзей нет.",
+          guest: "Войди в аккаунт, чтобы добавлять друзей и видеть их очки.",
+          loading: "Загружаем друзей...",
+          score: "очков",
+          self: "Нельзя добавить самого себя.",
+        }
+      : {
+          title: "Friends",
+          hint: "Add a friend by nickname and compare monthly homework points.",
+          nickname: "Friend nickname",
+          placeholder: "For example, Daler",
+          add: "Add friend",
+          added: "Friend added.",
+          empty: "No friends yet.",
+          guest: "Sign in to add friends and see their points.",
+          loading: "Loading friends...",
+          score: "points",
+          self: "You cannot add yourself.",
         };
   const accountToolsText =
     language === "ru"
@@ -909,7 +1200,6 @@ export default function Home() {
   const todayEvents = groupedEvents.find((group) => group.day === todayKey)?.events ?? [];
   const lessonCount = todayEvents.filter((event) => event.type === "school").length;
   const activityCount = todayEvents.filter((event) => event.type !== "school").length;
-  const homeworkPoints = todayEvents.filter((event) => event.homeworkDone).length * 2;
   const totalHours = Math.max(
     0,
     Math.round(
@@ -1060,6 +1350,11 @@ export default function Home() {
     setNicknameDraft("");
     setNicknameNotice("");
     setNicknameError("");
+    setMonthlyPoints(0);
+    setFriends([]);
+    setFriendNickname("");
+    setFriendNotice("");
+    setFriendError("");
   }
 
   async function saveNickname() {
@@ -1077,26 +1372,121 @@ export default function Home() {
 
     const trimmedNickname = nicknameDraft.trim();
 
+    if (trimmedNickname.length < 3 || trimmedNickname.length > 24) {
+      setNicknameError(authText.nicknameRules);
+      return;
+    }
+
     setNicknameLoading(true);
     setNicknameError("");
     setNicknameNotice("");
 
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        ...session.user.user_metadata,
-        nickname: trimmedNickname,
-      },
-    });
+    const [{ data, error }, { error: profileError }] = await Promise.all([
+      supabase.auth.updateUser({
+        data: {
+          ...session.user.user_metadata,
+          nickname: trimmedNickname,
+        },
+      }),
+      supabase.from("profiles").upsert(
+        {
+          id: session.user.id,
+          nickname: trimmedNickname,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      ),
+    ]);
 
-    if (error) {
-      setNicknameError(error.message);
+    if (error || profileError) {
+      setNicknameError(error?.message ?? profileError?.message ?? "Nickname save failed.");
       setNicknameLoading(false);
       return;
+    }
+
+    if (data.user) {
+      startTransition(() => {
+        setSession((current) => (current ? { ...current, user: data.user } : current));
+      });
     }
 
     setNicknameDraft(trimmedNickname);
     setNicknameNotice(authText.nicknameSaved);
     setNicknameLoading(false);
+  }
+
+  async function addFriend() {
+    if (!isSupabaseConfigured) {
+      setFriendError(authText.authNoSupabase);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase || !session) {
+      setFriendError(authText.authNoSupabase);
+      return;
+    }
+
+    const trimmedNickname = friendNickname.trim();
+
+    if (!trimmedNickname) {
+      setFriendError(
+        language === "ru" ? "Сначала введи никнейм друга." : "Enter your friend's nickname first.",
+      );
+      return;
+    }
+
+    setFriendAddLoading(true);
+    setFriendError("");
+    setFriendNotice("");
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, nickname")
+      .ilike("nickname", trimmedNickname)
+      .limit(1)
+      .maybeSingle();
+
+    if (profileError) {
+      setFriendError(profileError.message);
+      setFriendAddLoading(false);
+      return;
+    }
+
+    if (!profile) {
+      setFriendError(language === "ru" ? "Пользователь не найден." : "User not found.");
+      setFriendAddLoading(false);
+      return;
+    }
+
+    if (profile.id === session.user.id) {
+      setFriendError(friendsText.self);
+      setFriendAddLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.from("friendships").insert({
+      user_id: session.user.id,
+      friend_user_id: profile.id,
+    });
+
+    if (error) {
+      setFriendError(error.message);
+      setFriendAddLoading(false);
+      return;
+    }
+
+    setFriendNickname("");
+    setFriendNotice(friendsText.added);
+    setFriendAddLoading(false);
+    startTransition(() => {
+      setFriends((current) =>
+        [...current.filter((entry) => entry.id !== profile.id), { id: profile.id, nickname: profile.nickname, points: 0 }].sort(
+          (a, b) => b.points - a.points || a.nickname.localeCompare(b.nickname),
+        ),
+      );
+    });
   }
 
   async function signInWithGoogle() {
@@ -1210,26 +1600,31 @@ export default function Home() {
   }
 
   function toggleHomeworkDone(eventId: string) {
+    let nextDelta = 0;
+
     setEvents((current) =>
-      current.map((event) =>
-        event.id === eventId
-          ? {
-              ...event,
-              homeworkDone: !event.homeworkDone,
-            }
-          : event,
-      ),
+      current.map((event) => {
+        if (event.id !== eventId) {
+          return event;
+        }
+
+        const nextHomeworkDone = !event.homeworkDone;
+        nextDelta = nextHomeworkDone ? 2 : -2;
+
+        return {
+          ...event,
+          homeworkDone: nextHomeworkDone,
+        };
+      }),
     );
+
+    if (nextDelta !== 0) {
+      setMonthlyPoints((current) => clampPoints(current + nextDelta));
+    }
   }
 
   const displayName =
-    typeof session?.user.user_metadata?.nickname === "string" &&
-    session.user.user_metadata.nickname.trim()
-      ? session.user.user_metadata.nickname.trim()
-      : typeof session?.user.user_metadata?.full_name === "string" &&
-          session.user.user_metadata.full_name.trim()
-        ? session.user.user_metadata.full_name.trim()
-        : session?.user.email ?? authText.authCta;
+    createSuggestedNickname(session) || session?.user.email || authText.authCta;
 
   return (
     <main className="min-h-screen px-4 py-6 text-[var(--foreground)] sm:px-6 lg:px-10">
@@ -1438,6 +1833,9 @@ export default function Home() {
                           </Field>
                           <p className="text-sm leading-6 text-[color:var(--muted)]">
                             {authText.nicknameHint}
+                          </p>
+                          <p className="text-sm leading-6 text-[color:var(--muted-soft)]">
+                            {authText.nicknameRules}
                           </p>
                           {nicknameError ? (
                             <StatusBanner tone="error" icon={<AlertIcon />} text={nicknameError} />
@@ -1676,12 +2074,21 @@ export default function Home() {
                     label={language === "ru" ? `${todayEvents.length} дел на сегодня` : `${todayEvents.length} items today`}
                     tone="idle"
                   />
+                  <StatusPill
+                    icon={<CheckSquareIcon checked />}
+                    label={
+                      language === "ru"
+                        ? `${monthlyPoints} очков в этом месяце`
+                        : `${monthlyPoints} points this month`
+                    }
+                    tone="saved"
+                  />
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard value={lessonCount} label={uiText.lessonsToday} />
                 <StatCard value={activityCount} label={uiText.activitiesToday} />
-                <StatCard value={homeworkPoints} label={uiText.pointsToday} />
+                <StatCard value={monthlyPoints} label={uiText.pointsToday} />
                 <StatCard value={totalHours} label={uiText.hoursToday} />
               </div>
             </div>
@@ -2015,6 +2422,93 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="liquid-glass glass-lift rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                {friendsText.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                {friendsText.hint}
+              </p>
+            </div>
+            <StatusPill
+              icon={<CheckSquareIcon checked />}
+              label={
+                language === "ru"
+                  ? `${monthlyPoints} очков у тебя`
+                  : `${monthlyPoints} points for you`
+              }
+              tone="saved"
+            />
+          </div>
+          {session ? (
+            <>
+              <div className="mt-6 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Field label={friendsText.nickname}>
+                  <input
+                    className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
+                    onChange={(event) => setFriendNickname(event.target.value)}
+                    placeholder={friendsText.placeholder}
+                    value={friendNickname}
+                  />
+                </Field>
+                <button
+                  className="glass-primary inline-flex h-12 items-center justify-center gap-2 self-end rounded-2xl bg-[var(--accent-strong)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={friendAddLoading || !friendNickname.trim()}
+                  onClick={addFriend}
+                  type="button"
+                >
+                  {friendAddLoading ? <LoaderIcon /> : <UserIcon />}
+                  {friendsText.add}
+                </button>
+              </div>
+              {friendError ? (
+                <div className="mt-4">
+                  <StatusBanner tone="error" icon={<AlertIcon />} text={friendError} />
+                </div>
+              ) : null}
+              {friendNotice ? (
+                <div className="mt-4">
+                  <StatusBanner tone="success" icon={<CheckIcon />} text={friendNotice} />
+                </div>
+              ) : null}
+              <div className="mt-6 grid gap-3">
+                {friendsLoading ? (
+                  <p className="text-sm leading-6 text-[color:var(--muted)]">{friendsText.loading}</p>
+                ) : friends.length === 0 ? (
+                  <p className="rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-4 py-5 text-sm font-medium text-[var(--empty-text)]">
+                    {friendsText.empty}
+                  </p>
+                ) : (
+                  friends.map((friend) => (
+                    <article
+                      key={friend.id}
+                      className="liquid-glass glass-lift flex items-center justify-between gap-4 rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] px-4 py-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-[var(--foreground)]">
+                          {friend.nickname}
+                        </p>
+                        <p className="mt-1 text-sm text-[color:var(--muted)]">
+                          {friend.points} {friendsText.score}
+                        </p>
+                      </div>
+                      <span className="glass-badge rounded-full px-3 py-1 text-sm font-semibold">
+                        {friend.points}
+                      </span>
+                    </article>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="mt-6 rounded-2xl border border-dashed border-[var(--empty-line)] bg-[var(--empty-surface)] px-4 py-5 text-sm font-medium text-[var(--empty-text)]">
+              {friendsText.guest}
+            </p>
+          )}
         </section>
       </div>
     </main>
