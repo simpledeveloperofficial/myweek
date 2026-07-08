@@ -563,6 +563,26 @@ export default function Home() {
   }, [theme, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const shouldLockScroll = authOpen || settingsOpen;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    if (shouldLockScroll) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [authOpen, isHydrated, settingsOpen]);
+
+  useEffect(() => {
     const userId = session?.user.id ?? null;
 
     if (!isHydrated || !userId || loadedUserId !== userId || !isSupabaseConfigured) {
@@ -1221,9 +1241,10 @@ export default function Home() {
             onClick={() => setAuthOpen(false)}
             type="button"
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in w-full max-w-md rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-4">
+          <div className="absolute inset-0 overflow-y-auto overscroll-contain px-4 py-4 sm:py-8">
+            <div className="flex min-h-full items-start justify-center sm:items-center">
+              <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] sm:max-h-[min(720px,calc(100vh-4rem))]">
+                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--line-soft)] bg-[var(--surface-strong)] px-5 py-5 backdrop-blur-xl sm:px-7 sm:py-6">
                 <div>
                   <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
                     {isRecoveringPassword
@@ -1246,8 +1267,9 @@ export default function Home() {
                 >
                   <CloseIcon />
                 </button>
-              </div>
-              <div className="mt-6 grid gap-4">
+                </div>
+                <div className="overflow-y-auto px-5 pb-5 pt-6 sm:px-7 sm:pb-7">
+                  <div className="grid gap-4">
                 {isRecoveringPassword ? null : (
                   <>
                     <button
@@ -1347,6 +1369,8 @@ export default function Home() {
                     </button>
                   </>
                 )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1360,9 +1384,10 @@ export default function Home() {
             onClick={() => setSettingsOpen(false)}
             type="button"
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in w-full max-w-xl rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-4">
+          <div className="absolute inset-0 overflow-y-auto overscroll-contain px-4 py-4 sm:py-8">
+            <div className="flex min-h-full items-start justify-center sm:items-center">
+              <div className="pointer-events-auto liquid-glass glass-modal animate-scale-in flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[30px] border border-[var(--line)] bg-[var(--surface-strong)] sm:max-h-[min(860px,calc(100vh-4rem))]">
+                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--line-soft)] bg-[var(--surface-strong)] px-5 py-5 backdrop-blur-xl sm:px-7 sm:py-6">
                 <div>
                   <h3 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
                     {t.settingsTitle}
@@ -1378,8 +1403,9 @@ export default function Home() {
                 >
                   <CloseIcon />
                 </button>
-              </div>
-              <div className="mt-6">
+                </div>
+                <div className="overflow-y-auto px-5 pb-5 pt-6 sm:px-7 sm:pb-7">
+              <div>
                 <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
                   {authText.account}
                 </p>
@@ -1537,6 +1563,8 @@ export default function Home() {
                       {supportLinksText.email}
                     </a>
                   </div>
+                </div>
+              </div>
                 </div>
               </div>
             </div>
