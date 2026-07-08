@@ -1054,6 +1054,11 @@ export default function Home() {
           authSignedInNotice: "Вход выполнен.",
           authSignUpNotice:
             "Аккаунт создан. Если включено подтверждение почты, проверь письмо и затем войди.",
+          authAlreadySignedInTitle: "Ты уже вошел",
+          authAlreadySignedInHint:
+            "Сейчас открыт активный аккаунт. Если нужен другой, сначала выйди из текущего.",
+          authContinue: "Продолжить с этим аккаунтом",
+          authSwitchAccount: "Выйти и сменить аккаунт",
           nicknameLabel: "Никнейм",
           nicknamePlaceholder: "Например, Daler",
           nicknameHint: "Он будет показываться в аккаунте вместо почты, где это уместно.",
@@ -1084,6 +1089,11 @@ export default function Home() {
           authSignedInNotice: "Signed in.",
           authSignUpNotice:
             "Account created. If email confirmation is enabled, check your inbox and then sign in.",
+          authAlreadySignedInTitle: "You are already signed in",
+          authAlreadySignedInHint:
+            "There is already an active account in this app. Sign out first if you want another one.",
+          authContinue: "Continue with this account",
+          authSwitchAccount: "Sign out and switch account",
           nicknameLabel: "Nickname",
           nicknamePlaceholder: "For example, Daler",
           nicknameHint: "It will appear in your account area instead of email where appropriate.",
@@ -1664,6 +1674,41 @@ export default function Home() {
                 </div>
                 <div className="overflow-y-auto px-5 pb-5 pt-6 sm:px-7 sm:pb-7">
                   <div className="grid gap-4">
+                {session && !isRecoveringPassword ? (
+                  <>
+                    <StatusBanner
+                      tone="success"
+                      icon={<CheckIcon />}
+                      text={`${authText.authSignedInAs} ${displayName}`}
+                    />
+                    <p className="text-sm leading-6 text-[color:var(--muted)]">
+                      {authText.authAlreadySignedInHint}
+                    </p>
+                    <button
+                      className="glass-primary mt-2 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[var(--accent-strong)] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-110"
+                      onClick={() => setAuthOpen(false)}
+                      type="button"
+                    >
+                      <SparkIcon />
+                      {authText.authContinue}
+                    </button>
+                    <button
+                      className="glass-action inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
+                      onClick={async () => {
+                        await signOut();
+                        setAuthMode("signIn");
+                        setAuthNotice("");
+                        setAuthError("");
+                        setAuthOpen(true);
+                      }}
+                      type="button"
+                    >
+                      <LogoutIcon />
+                      {authText.authSwitchAccount}
+                    </button>
+                  </>
+                ) : (
+                  <>
                 {isRecoveringPassword ? null : (
                   <>
                     <button
@@ -1761,6 +1806,8 @@ export default function Home() {
                         ? authText.authSwitchToSignUp
                         : authText.authSwitchToSignIn}
                     </button>
+                  </>
+                )}
                   </>
                 )}
                   </div>
