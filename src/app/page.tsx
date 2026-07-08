@@ -525,8 +525,6 @@ export default function Home() {
 
     startTransition(() => {
       setNicknameDraft(nextNickname);
-      setNicknameError("");
-      setNicknameNotice("");
     });
   }, [session]);
 
@@ -1064,6 +1062,7 @@ export default function Home() {
           nicknameHint: "Он будет показываться в аккаунте вместо почты, где это уместно.",
           nicknameSave: "Сохранить никнейм",
           nicknameSaved: "Никнейм сохранен.",
+          nicknameSavedShort: "Сохранено",
           nicknameRules: "От 3 до 24 символов. Лучше без пробелов.",
         }
       : {
@@ -1099,6 +1098,7 @@ export default function Home() {
           nicknameHint: "It will appear in your account area instead of email where appropriate.",
           nicknameSave: "Save nickname",
           nicknameSaved: "Nickname saved.",
+          nicknameSavedShort: "Saved",
           nicknameRules: "Use 3 to 24 characters. Better without spaces.",
         };
   const friendsText =
@@ -1872,7 +1872,11 @@ export default function Home() {
                           <Field label={authText.nicknameLabel}>
                             <input
                               className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
-                              onChange={(event) => setNicknameDraft(event.target.value)}
+                              onChange={(event) => {
+                                setNicknameDraft(event.target.value);
+                                setNicknameNotice("");
+                                setNicknameError("");
+                              }}
                               placeholder={authText.nicknamePlaceholder}
                               value={nicknameDraft}
                             />
@@ -1891,12 +1895,21 @@ export default function Home() {
                           ) : null}
                           <button
                             className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
-                            disabled={nicknameLoading}
+                            disabled={
+                              nicknameLoading ||
+                              nicknameDraft.trim() === createSuggestedNickname(session)
+                            }
                             onClick={saveNickname}
                             type="button"
                           >
-                            {nicknameLoading ? <LoaderIcon /> : <UserIcon />}
-                            {authText.nicknameSave}
+                            {nicknameLoading ? (
+                              <LoaderIcon />
+                            ) : nicknameNotice ? (
+                              <CheckIcon />
+                            ) : (
+                              <UserIcon />
+                            )}
+                            {nicknameNotice ? authText.nicknameSavedShort : authText.nicknameSave}
                           </button>
                           <button
                             className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
