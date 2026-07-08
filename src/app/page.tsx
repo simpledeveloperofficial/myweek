@@ -41,6 +41,20 @@ type FriendEntry = {
   points: number;
 };
 
+type RewardTier = {
+  minLevel: number;
+  maxLevel: number | null;
+  badge: string;
+  title: {
+    ru: string;
+    en: string;
+  };
+  detail: {
+    ru: string;
+    en: string;
+  };
+};
+
 type Copy = {
   appName: string;
   badge: string;
@@ -86,6 +100,74 @@ const pointsStorageKey = "myweek-monthly-points-v1";
 const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "simpledesignerdd@gmail.com";
 const supportWhatsapp = "https://wa.me/77478687825";
 const supportTelegram = "https://t.me/Dalernigmatov777";
+const pointsPerLevel = 10;
+const rewardTiers: RewardTier[] = [
+  {
+    minLevel: 1,
+    maxLevel: 5,
+    badge: "🟢",
+    title: {
+      ru: "Новые цвета приложения",
+      en: "New app colors",
+    },
+    detail: {
+      ru: "Открывается ветка цветовых наград для интерфейса.",
+      en: "This unlocks the app color reward track.",
+    },
+  },
+  {
+    minLevel: 6,
+    maxLevel: 10,
+    badge: "🔵",
+    title: {
+      ru: "Рамки профиля",
+      en: "Profile frames",
+    },
+    detail: {
+      ru: "Профиль получает заметную рамку уровня.",
+      en: "Your profile gets a visible level frame.",
+    },
+  },
+  {
+    minLevel: 11,
+    maxLevel: 20,
+    badge: "🟣",
+    title: {
+      ru: "Питомец начинает расти",
+      en: "Pet starts growing",
+    },
+    detail: {
+      ru: "Следующий этап — вырастить питомца через активность.",
+      en: "Next step is to grow a pet through activity.",
+    },
+  },
+  {
+    minLevel: 21,
+    maxLevel: 30,
+    badge: "🟡",
+    title: {
+      ru: "Редкие темы",
+      en: "Rare themes",
+    },
+    detail: {
+      ru: "Откроются редкие темы оформления.",
+      en: "Rare visual themes become available.",
+    },
+  },
+  {
+    minLevel: 31,
+    maxLevel: null,
+    badge: "🔴",
+    title: {
+      ru: "Уникальные достижения",
+      en: "Unique achievements",
+    },
+    detail: {
+      ru: "Высший диапазон с особыми достижениями и наградами.",
+      en: "Top tier with special achievements and rewards.",
+    },
+  },
+];
 
 const copy: Record<Language, Copy> = {
   ru: {
@@ -315,6 +397,36 @@ function createSuggestedNickname(session: Session | null) {
   }
 
   return `user_${session.user.id.slice(0, 6)}`;
+}
+
+function getLevelFromPoints(points: number) {
+  return Math.floor(clampPoints(points) / pointsPerLevel) + 1;
+}
+
+function getLevelProgress(points: number) {
+  const safePoints = clampPoints(points);
+  const currentLevel = getLevelFromPoints(safePoints);
+  const pointsIntoLevel = safePoints % pointsPerLevel;
+  const pointsToNextLevel = pointsPerLevel - pointsIntoLevel;
+
+  return {
+    currentLevel,
+    pointsIntoLevel,
+    pointsToNextLevel,
+    progressPercent: (pointsIntoLevel / pointsPerLevel) * 100,
+  };
+}
+
+function getRewardTierForLevel(level: number) {
+  return (
+    rewardTiers.find(
+      (tier) => level >= tier.minLevel && (tier.maxLevel === null || level <= tier.maxLevel),
+    ) ?? rewardTiers[rewardTiers.length - 1]
+  );
+}
+
+function getNextRewardTier(level: number) {
+  return rewardTiers.find((tier) => tier.minLevel > level) ?? null;
 }
 
 function createDefaultForm(day: DayKey = "monday") {
@@ -1129,6 +1241,32 @@ export default function Home() {
           score: "points",
           self: "You cannot add yourself.",
         };
+  const levelText =
+    language === "ru"
+      ? {
+          title: "Уровень",
+          monthlyTrack: "Месячный прогресс",
+          currentReward: "Текущая награда",
+          nextReward: "Следующая награда",
+          progressToNext: "До следующего уровня",
+          pointsLeft: "очков осталось",
+          levelShort: "ур.",
+          levelCardHint: "Очки и уровень обновляются внутри текущего месяца.",
+          unlocked: "Открыто сейчас",
+          unlockAt: "Откроется на",
+        }
+      : {
+          title: "Level",
+          monthlyTrack: "Monthly progress",
+          currentReward: "Current reward",
+          nextReward: "Next reward",
+          progressToNext: "Until next level",
+          pointsLeft: "points left",
+          levelShort: "lvl",
+          levelCardHint: "Points and level progress reset within each month.",
+          unlocked: "Unlocked now",
+          unlockAt: "Unlocks at",
+        };
   const accountToolsText =
     language === "ru"
       ? {
@@ -1210,6 +1348,11 @@ export default function Home() {
   const todayEvents = groupedEvents.find((group) => group.day === todayKey)?.events ?? [];
   const lessonCount = todayEvents.filter((event) => event.type === "school").length;
   const activityCount = todayEvents.filter((event) => event.type !== "school").length;
+  const levelProgress = getLevelProgress(monthlyPoints);
+  const currentLevel = levelProgress.currentLevel;
+  const currentRewardTier = getRewardTierForLevel(currentLevel);
+  const nextRewardTier = getNextRewardTier(currentLevel);
+  const hasProfileFrame = currentLevel >= 6;
   const totalHours = Math.max(
     0,
     Math.round(
@@ -2049,7 +2192,11 @@ export default function Home() {
                 <div className="grid w-full gap-3 sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-self-end">
                   {isSupabaseConfigured ? (
                     <button
-                      className="liquid-glass glass-lift inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border border-[var(--line)] bg-[var(--chip-surface)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5"
+                      className={`liquid-glass glass-lift inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border bg-[var(--chip-surface)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5 ${
+                        hasProfileFrame
+                          ? "border-[color:rgba(138,177,255,0.58)] shadow-[0_0_0_2px_rgba(138,177,255,0.18),0_14px_34px_rgba(76,124,240,0.18)]"
+                          : "border-[var(--line)]"
+                      }`}
                       onClick={() => {
                         setAuthError("");
                         setAuthNotice("");
@@ -2142,6 +2289,73 @@ export default function Home() {
                     }
                     tone="saved"
                   />
+                </div>
+                <div className="mt-4 liquid-glass glass-lift rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                        {levelText.monthlyTrack}
+                      </p>
+                      <h3 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-[var(--accent)]">
+                        {levelText.title} {currentLevel}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                        {levelText.levelCardHint}
+                      </p>
+                    </div>
+                    <span className="glass-badge rounded-full px-3 py-1 text-sm font-semibold">
+                      {currentRewardTier.badge} {levelText.unlocked}
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="h-3 overflow-hidden rounded-full bg-[var(--empty-surface)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent-strong)] transition-[width] duration-300"
+                        style={{ width: `${Math.max(10, levelProgress.progressPercent)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-[color:var(--muted)]">
+                      <span>
+                        {levelText.progressToNext}: {levelProgress.pointsToNextLevel}{" "}
+                        {levelText.pointsLeft}
+                      </span>
+                      <span>
+                        {levelText.levelShort} {currentLevel + 1}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                        {levelText.currentReward}
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-[var(--foreground)]">
+                        {currentRewardTier.badge} {currentRewardTier.title[language]}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">
+                        {currentRewardTier.detail[language]}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                        {levelText.nextReward}
+                      </p>
+                      {nextRewardTier ? (
+                        <>
+                          <p className="mt-2 text-base font-semibold text-[var(--foreground)]">
+                            {nextRewardTier.badge} {nextRewardTier.title[language]}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">
+                            {levelText.unlockAt} {nextRewardTier.minLevel} {levelText.levelShort}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-2 text-base font-semibold text-[var(--foreground)]">
+                          {currentRewardTier.badge} {currentRewardTier.title[language]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
