@@ -96,6 +96,41 @@ html[data-theme="dark"] {
   --empty-text: rgba(237, 245, 255, 0.76);
 }
 
+html[data-theme-variant="royal"] {
+  --accent-strong: #0e2f76;
+  --accent-soft: rgba(169, 192, 224, 0.28);
+  --focus: #2454b8;
+  --thumb-shadow: rgba(14, 47, 118, 0.22);
+}
+
+html[data-theme-variant="mint"] {
+  --accent-strong: #138b7a;
+  --accent-soft: rgba(19, 139, 122, 0.18);
+  --focus: #19a893;
+  --thumb-shadow: rgba(19, 139, 122, 0.22);
+}
+
+html[data-theme-variant="sunset"] {
+  --accent-strong: #d97941;
+  --accent-soft: rgba(217, 121, 65, 0.18);
+  --focus: #ee9257;
+  --thumb-shadow: rgba(217, 121, 65, 0.24);
+}
+
+html[data-theme-variant="violet"] {
+  --accent-strong: #7157d8;
+  --accent-soft: rgba(113, 87, 216, 0.18);
+  --focus: #8d76ec;
+  --thumb-shadow: rgba(113, 87, 216, 0.24);
+}
+
+html[data-theme-variant="crimson"] {
+  --accent-strong: #c44a66;
+  --accent-soft: rgba(196, 74, 102, 0.18);
+  --focus: #da617d;
+  --thumb-shadow: rgba(196, 74, 102, 0.24);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

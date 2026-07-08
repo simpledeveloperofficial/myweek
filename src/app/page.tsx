@@ -6,6 +6,8 @@ import type { Session } from "@supabase/supabase-js";
 
 type Language = "ru" | "en";
 type Theme = "light" | "dark";
+type ThemeVariant = "royal" | "mint" | "sunset" | "violet" | "crimson";
+type ProfileFrame = "none" | "aurora" | "pulse" | "prism" | "crown" | "legend";
 type AuthMode = "signIn" | "signUp";
 type SaveState = "idle" | "saving" | "saved" | "local" | "error";
 type EventType = "school" | "tutor" | "sport" | "hobby";
@@ -55,6 +57,25 @@ type RewardTier = {
   };
 };
 
+type ThemeReward = {
+  id: ThemeVariant;
+  unlockLevel: number;
+  color: string;
+  label: {
+    ru: string;
+    en: string;
+  };
+};
+
+type FrameReward = {
+  id: ProfileFrame;
+  unlockLevel: number;
+  label: {
+    ru: string;
+    en: string;
+  };
+};
+
 type Copy = {
   appName: string;
   badge: string;
@@ -96,6 +117,8 @@ type Copy = {
 
 const storageKey = "myweek-schedule-v1";
 const themeStorageKey = "myweek-theme-v1";
+const themeVariantStorageKey = "myweek-theme-variant-v1";
+const profileFrameStorageKey = "myweek-profile-frame-v1";
 const pointsStorageKey = "myweek-monthly-points-v1";
 const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "simpledesignerdd@gmail.com";
 const supportWhatsapp = "https://wa.me/77478687825";
@@ -167,6 +190,20 @@ const rewardTiers: RewardTier[] = [
       en: "Top tier with special achievements and rewards.",
     },
   },
+];
+const themeRewards: ThemeReward[] = [
+  { id: "royal", unlockLevel: 1, color: "#0e2f76", label: { ru: "Royal Blue", en: "Royal Blue" } },
+  { id: "mint", unlockLevel: 2, color: "#138b7a", label: { ru: "Mint Wave", en: "Mint Wave" } },
+  { id: "sunset", unlockLevel: 3, color: "#d97941", label: { ru: "Sunset Glow", en: "Sunset Glow" } },
+  { id: "violet", unlockLevel: 4, color: "#7157d8", label: { ru: "Violet Pulse", en: "Violet Pulse" } },
+  { id: "crimson", unlockLevel: 5, color: "#c44a66", label: { ru: "Crimson Spark", en: "Crimson Spark" } },
+];
+const frameRewards: FrameReward[] = [
+  { id: "aurora", unlockLevel: 6, label: { ru: "Aurora", en: "Aurora" } },
+  { id: "pulse", unlockLevel: 7, label: { ru: "Pulse", en: "Pulse" } },
+  { id: "prism", unlockLevel: 8, label: { ru: "Prism", en: "Prism" } },
+  { id: "crown", unlockLevel: 9, label: { ru: "Crown", en: "Crown" } },
+  { id: "legend", unlockLevel: 10, label: { ru: "Legend", en: "Legend" } },
 ];
 
 const copy: Record<Language, Copy> = {
@@ -429,6 +466,30 @@ function getNextRewardTier(level: number) {
   return rewardTiers.find((tier) => tier.minLevel > level) ?? null;
 }
 
+function getProfileFrameClass(frame: ProfileFrame) {
+  if (frame === "aurora") {
+    return "border-[color:rgba(138,177,255,0.58)] shadow-[0_0_0_2px_rgba(138,177,255,0.18),0_14px_34px_rgba(76,124,240,0.18)]";
+  }
+
+  if (frame === "pulse") {
+    return "border-[color:rgba(19,139,122,0.58)] shadow-[0_0_0_2px_rgba(19,139,122,0.16),0_14px_34px_rgba(19,139,122,0.18)]";
+  }
+
+  if (frame === "prism") {
+    return "border-[color:rgba(113,87,216,0.62)] shadow-[0_0_0_2px_rgba(113,87,216,0.18),0_14px_34px_rgba(113,87,216,0.18)]";
+  }
+
+  if (frame === "crown") {
+    return "border-[color:rgba(217,121,65,0.62)] shadow-[0_0_0_2px_rgba(217,121,65,0.18),0_14px_34px_rgba(217,121,65,0.18)]";
+  }
+
+  if (frame === "legend") {
+    return "border-[color:rgba(196,74,102,0.68)] shadow-[0_0_0_2px_rgba(196,74,102,0.2),0_14px_34px_rgba(196,74,102,0.2)]";
+  }
+
+  return "border-[var(--line)]";
+}
+
 function createDefaultForm(day: DayKey = "monday") {
   return {
     title: "",
@@ -456,6 +517,8 @@ export default function Home() {
   const addFormRef = useRef<HTMLDivElement | null>(null);
   const [language, setLanguage] = useState<Language>("ru");
   const [theme, setTheme] = useState<Theme>("light");
+  const [themeVariant, setThemeVariant] = useState<ThemeVariant>("royal");
+  const [profileFrame, setProfileFrame] = useState<ProfileFrame>("none");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -487,12 +550,26 @@ export default function Home() {
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(themeStorageKey);
+    const storedThemeVariant = window.localStorage.getItem(themeVariantStorageKey);
+    const storedProfileFrame = window.localStorage.getItem(profileFrameStorageKey);
     const stored = window.localStorage.getItem(storageKey);
     const storedPoints = window.localStorage.getItem(pointsStorageKey);
 
     if (storedTheme === "light" || storedTheme === "dark") {
       startTransition(() => {
         setTheme(storedTheme);
+      });
+    }
+
+    if (storedThemeVariant && themeRewards.some((item) => item.id === storedThemeVariant)) {
+      startTransition(() => {
+        setThemeVariant(storedThemeVariant as ThemeVariant);
+      });
+    }
+
+    if (storedProfileFrame && frameRewards.some((item) => item.id === storedProfileFrame)) {
+      startTransition(() => {
+        setProfileFrame(storedProfileFrame as ProfileFrame);
       });
     }
 
@@ -756,9 +833,12 @@ export default function Home() {
     }
 
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.themeVariant = themeVariant;
     document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(themeStorageKey, theme);
-  }, [theme, isHydrated]);
+    window.localStorage.setItem(themeVariantStorageKey, themeVariant);
+    window.localStorage.setItem(profileFrameStorageKey, profileFrame);
+  }, [theme, themeVariant, profileFrame, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -1267,6 +1347,24 @@ export default function Home() {
           unlocked: "Unlocked now",
           unlockAt: "Unlocks at",
         };
+  const customizeText =
+    language === "ru"
+      ? {
+          colorThemes: "Цветовые темы",
+          profileFrames: "Рамки профиля",
+          unlockedAt: "Открывается на",
+          selected: "Выбрано",
+          locked: "Закрыто",
+          levelWord: "уровне",
+        }
+      : {
+          colorThemes: "Color themes",
+          profileFrames: "Profile frames",
+          unlockedAt: "Unlocks at",
+          selected: "Selected",
+          locked: "Locked",
+          levelWord: "level",
+        };
   const accountToolsText =
     language === "ru"
       ? {
@@ -1352,7 +1450,14 @@ export default function Home() {
   const currentLevel = levelProgress.currentLevel;
   const currentRewardTier = getRewardTierForLevel(currentLevel);
   const nextRewardTier = getNextRewardTier(currentLevel);
-  const hasProfileFrame = currentLevel >= 6;
+  const unlockedThemeRewards = themeRewards.filter((item) => currentLevel >= item.unlockLevel);
+  const unlockedFrameRewards = frameRewards.filter((item) => currentLevel >= item.unlockLevel);
+  const selectedThemeUnlocked = unlockedThemeRewards.some((item) => item.id === themeVariant);
+  const selectedFrameUnlocked = unlockedFrameRewards.some((item) => item.id === profileFrame);
+  const effectiveThemeVariant = selectedThemeUnlocked ? themeVariant : "royal";
+  const effectiveProfileFrame: ProfileFrame =
+    selectedFrameUnlocked ? profileFrame : unlockedFrameRewards[0]?.id ?? "none";
+  const hasProfileFrame = effectiveProfileFrame !== "none";
   const totalHours = Math.max(
     0,
     Math.round(
@@ -1364,6 +1469,16 @@ export default function Home() {
         10,
     ) / 10,
   );
+
+  useEffect(() => {
+    if (!selectedThemeUnlocked) {
+      setThemeVariant("royal");
+    }
+
+    if (!selectedFrameUnlocked) {
+      setProfileFrame(unlockedFrameRewards[0]?.id ?? "none");
+    }
+  }, [selectedThemeUnlocked, selectedFrameUnlocked, unlockedFrameRewards]);
 
   async function submitAuth() {
     if (!isSupabaseConfigured) {
@@ -2130,6 +2245,102 @@ export default function Home() {
               </div>
               <div className="mt-6">
                 <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
+                  {customizeText.colorThemes}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {themeRewards.map((reward) => {
+                    const unlocked = currentLevel >= reward.unlockLevel;
+                    const selected = effectiveThemeVariant === reward.id;
+
+                    return (
+                      <button
+                        key={reward.id}
+                        className={`rounded-[22px] border px-4 py-4 text-left transition ${
+                          unlocked
+                            ? selected
+                              ? "border-[var(--focus)] bg-[var(--card-surface)]"
+                              : "border-[var(--line)] bg-[var(--surface-strong)] hover:bg-[var(--button-hover)]"
+                            : "border-[var(--line-soft)] bg-[var(--empty-surface)] opacity-60"
+                        }`}
+                        disabled={!unlocked}
+                        onClick={() => setThemeVariant(reward.id)}
+                        type="button"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="h-5 w-5 rounded-full border border-white/30"
+                              style={{ backgroundColor: reward.color }}
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
+                                {reward.label[language]}
+                              </p>
+                              <p className="mt-1 text-xs text-[color:var(--muted)]">
+                                {unlocked
+                                  ? selected
+                                    ? customizeText.selected
+                                    : `${customizeText.unlockedAt} ${reward.unlockLevel} ${customizeText.levelWord}`
+                                  : `${customizeText.unlockedAt} ${reward.unlockLevel} ${customizeText.levelWord}`}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="glass-badge rounded-full px-2 py-1 text-[10px] font-semibold">
+                            L{reward.unlockLevel}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
+                  {customizeText.profileFrames}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {frameRewards.map((reward) => {
+                    const unlocked = currentLevel >= reward.unlockLevel;
+                    const selected = effectiveProfileFrame === reward.id;
+
+                    return (
+                      <button
+                        key={reward.id}
+                        className={`rounded-[22px] border px-4 py-4 text-left transition ${
+                          unlocked
+                            ? selected
+                              ? `${getProfileFrameClass(reward.id)} bg-[var(--card-surface)]`
+                              : "border-[var(--line)] bg-[var(--surface-strong)] hover:bg-[var(--button-hover)]"
+                            : "border-[var(--line-soft)] bg-[var(--empty-surface)] opacity-60"
+                        }`}
+                        disabled={!unlocked}
+                        onClick={() => setProfileFrame(reward.id)}
+                        type="button"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--foreground)]">
+                              {reward.label[language]}
+                            </p>
+                            <p className="mt-1 text-xs text-[color:var(--muted)]">
+                              {unlocked
+                                ? selected
+                                  ? customizeText.selected
+                                  : `${customizeText.unlockedAt} ${reward.unlockLevel} ${customizeText.levelWord}`
+                                : `${customizeText.unlockedAt} ${reward.unlockLevel} ${customizeText.levelWord}`}
+                            </p>
+                          </div>
+                          <span className="glass-badge rounded-full px-2 py-1 text-[10px] font-semibold">
+                            L{reward.unlockLevel}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-[color:var(--muted)]">
                   {accountToolsText.support}
                 </p>
                 <div className="grid gap-3 rounded-[24px] border border-[var(--line)] bg-[var(--card-surface)] p-4">
@@ -2193,9 +2404,7 @@ export default function Home() {
                   {isSupabaseConfigured ? (
                     <button
                       className={`liquid-glass glass-lift inline-flex h-12 w-full max-w-full items-center justify-center gap-2 truncate rounded-full border bg-[var(--chip-surface)] px-4 text-sm font-semibold text-[var(--accent)] transition hover:brightness-105 sm:h-14 sm:w-auto sm:max-w-[240px] sm:px-5 ${
-                        hasProfileFrame
-                          ? "border-[color:rgba(138,177,255,0.58)] shadow-[0_0_0_2px_rgba(138,177,255,0.18),0_14px_34px_rgba(76,124,240,0.18)]"
-                          : "border-[var(--line)]"
+                        hasProfileFrame ? getProfileFrameClass(effectiveProfileFrame) : "border-[var(--line)]"
                       }`}
                       onClick={() => {
                         setAuthError("");
