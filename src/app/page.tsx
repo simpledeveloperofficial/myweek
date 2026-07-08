@@ -27,6 +27,7 @@ type ScheduleEvent = {
   endTime: string;
   location: string;
   notes: string;
+  homeworkDone: boolean;
 };
 
 type Copy = {
@@ -191,6 +192,7 @@ const initialEvents: ScheduleEvent[] = [
     endTime: "08:45",
     location: "204",
     notes: "",
+    homeworkDone: false,
   },
   {
     id: "0b0a237c-9586-4b78-a20d-1324141d9c86",
@@ -201,6 +203,7 @@ const initialEvents: ScheduleEvent[] = [
     endTime: "18:00",
     location: "Online",
     notes: "",
+    homeworkDone: false,
   },
   {
     id: "aa8a5f4f-28ae-4999-9e07-946e39f81b4d",
@@ -211,6 +214,7 @@ const initialEvents: ScheduleEvent[] = [
     endTime: "18:00",
     location: "Field A",
     notes: "",
+    homeworkDone: false,
   },
   {
     id: "30d67e72-f56e-4974-b69a-882214f42d7f",
@@ -221,6 +225,7 @@ const initialEvents: ScheduleEvent[] = [
     endTime: "16:20",
     location: "Studio",
     notes: "",
+    homeworkDone: false,
   },
 ];
 
@@ -236,6 +241,7 @@ function normalizeEvents(events: ScheduleEvent[]) {
   return events.map((event) => ({
     ...event,
     notes: event.notes ?? "",
+    homeworkDone: event.homeworkDone ?? false,
     id:
       isUuid(event.id) && !legacyInitialEventIds.has(event.id)
         ? event.id
@@ -479,7 +485,7 @@ export default function Home() {
 
       const { data, error } = await supabase
         .from("schedule_events")
-        .select("id, title, type, day, start_time, end_time, location, notes")
+        .select("id, title, type, day, start_time, end_time, location, notes, homework_done")
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
@@ -506,6 +512,7 @@ export default function Home() {
           endTime: event.end_time,
           location: event.location,
           notes: event.notes ?? "",
+          homeworkDone: event.homework_done ?? false,
         }));
 
         startTransition(() => {
@@ -566,6 +573,7 @@ export default function Home() {
         end_time: event.endTime,
         location: event.location,
         notes: event.notes,
+        homework_done: event.homeworkDone,
       }));
 
       if (events.length === 0) {
@@ -701,6 +709,8 @@ export default function Home() {
           hoursToday: "часов сегодня",
           edit: "Изменить",
           delete: "Удалить",
+          homeworkDone: "ДЗ готово",
+          homeworkTodo: "ДЗ",
           saveChanges: "Сохранить изменения",
           cancel: "Отмена",
           editModeTitle: "Редактировать событие",
@@ -711,6 +721,8 @@ export default function Home() {
           hoursToday: "hours today",
           edit: "Edit",
           delete: "Delete",
+          homeworkDone: "HW done",
+          homeworkTodo: "HW",
           saveChanges: "Save changes",
           cancel: "Cancel",
           editModeTitle: "Edit event",
@@ -1034,16 +1046,17 @@ export default function Home() {
       setEvents((current) =>
         current.map((event) =>
           event.id === editingEventId
-            ? {
-                ...event,
-                title: form.title.trim(),
-                type: form.type,
-                day: form.day,
-                startTime: form.startTime,
-                endTime: form.endTime,
-                location: form.location.trim(),
-                notes: form.notes.trim(),
-              }
+              ? {
+                  ...event,
+                  title: form.title.trim(),
+                  type: form.type,
+                  day: form.day,
+                  startTime: form.startTime,
+                  endTime: form.endTime,
+                  location: form.location.trim(),
+                  notes: form.notes.trim(),
+                  homeworkDone: event.homeworkDone,
+                }
             : event,
         ),
       );
@@ -1058,6 +1071,7 @@ export default function Home() {
         endTime: form.endTime,
         location: form.location.trim(),
         notes: form.notes.trim(),
+        homeworkDone: false,
       };
 
       setEvents((current) => [...current, nextEvent]);
@@ -1101,6 +1115,19 @@ export default function Home() {
         block: "start",
       });
     }, 40);
+  }
+
+  function toggleHomeworkDone(eventId: string) {
+    setEvents((current) =>
+      current.map((event) =>
+        event.id === eventId
+          ? {
+              ...event,
+              homeworkDone: !event.homeworkDone,
+            }
+          : event,
+      ),
+    );
   }
 
   return (
@@ -1542,7 +1569,11 @@ export default function Home() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-[var(--foreground)]">{event.title}</p>
+                          <p
+                            className={`font-semibold ${event.homeworkDone ? "text-[color:var(--muted)] line-through" : "text-[var(--foreground)]"}`}
+                          >
+                            {event.title}
+                          </p>
                           <p className="mt-1 text-sm text-[color:var(--muted)]">
                             {t.eventTypes[event.type]}
                             {event.location ? ` • ${event.location}` : ""}
@@ -1558,6 +1589,19 @@ export default function Home() {
                             {event.startTime} - {event.endTime}
                           </p>
                           <div className="flex flex-wrap justify-end gap-2">
+                            <button
+                              aria-pressed={event.homeworkDone}
+                              className={`glass-action inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                event.homeworkDone
+                                  ? "border-[color:rgba(109,214,156,0.28)] bg-[color:rgba(109,214,156,0.14)] text-[var(--foreground)]"
+                                  : "border-[var(--line)] text-[var(--accent)]"
+                              }`}
+                              onClick={() => toggleHomeworkDone(event.id)}
+                              type="button"
+                            >
+                              <CheckSquareIcon checked={event.homeworkDone} />
+                              {event.homeworkDone ? uiText.homeworkDone : uiText.homeworkTodo}
+                            </button>
                             <button
                               className="glass-action inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition"
                               onClick={() => startEditing(event)}
@@ -1638,7 +1682,9 @@ export default function Home() {
                           </div>
                           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-[var(--foreground)] sm:text-base">
+                              <p
+                                className={`truncate text-sm font-semibold sm:text-base ${event.homeworkDone ? "text-[color:var(--muted)] line-through" : "text-[var(--foreground)]"}`}
+                              >
                                 {event.title}
                               </p>
                               <p className="mt-1 text-xs text-[color:var(--muted)] sm:text-sm">
@@ -1652,6 +1698,19 @@ export default function Home() {
                               ) : null}
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              <button
+                                aria-pressed={event.homeworkDone}
+                                className={`glass-action inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
+                                  event.homeworkDone
+                                    ? "border-[color:rgba(109,214,156,0.28)] bg-[color:rgba(109,214,156,0.14)] text-[var(--foreground)]"
+                                    : "border-[var(--line)] text-[var(--accent)]"
+                                }`}
+                                onClick={() => toggleHomeworkDone(event.id)}
+                                type="button"
+                              >
+                                <CheckSquareIcon checked={event.homeworkDone} />
+                                {event.homeworkDone ? uiText.homeworkDone : uiText.homeworkTodo}
+                              </button>
                               <span className="glass-badge rounded-full px-2.5 py-1 text-[11px] font-semibold sm:px-3 sm:text-xs">
                                 {t.eventTypes[event.type]}
                               </span>
@@ -1992,6 +2051,15 @@ function CheckIcon() {
   return (
     <svg {...iconProps()}>
       <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function CheckSquareIcon({ checked }: Readonly<{ checked: boolean }>) {
+  return (
+    <svg {...iconProps()}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      {checked ? <path d="M8 12.5 10.8 15 16.5 9.5" /> : null}
     </svg>
   );
 }

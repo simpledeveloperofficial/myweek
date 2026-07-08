@@ -20,6 +20,7 @@ create table if not exists public.schedule_events (
   end_time text not null,
   location text not null default '',
   notes text not null default '',
+  homework_done boolean not null default false,
   created_at timestamptz not null default now()
 );
 
