@@ -308,6 +308,10 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [nicknameLoading, setNicknameLoading] = useState(false);
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameNotice, setNicknameNotice] = useState("");
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("local");
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
@@ -438,6 +442,21 @@ export default function Home() {
       });
     }
   }, [isHydrated, session]);
+
+  useEffect(() => {
+    const nextNickname =
+      typeof session?.user.user_metadata?.nickname === "string"
+        ? session.user.user_metadata.nickname
+        : typeof session?.user.user_metadata?.full_name === "string"
+          ? session.user.user_metadata.full_name
+          : "";
+
+    startTransition(() => {
+      setNicknameDraft(nextNickname);
+      setNicknameError("");
+      setNicknameNotice("");
+    });
+  }, [session]);
 
   useEffect(() => {
     if (!isHydrated || editingEventId) {
@@ -706,6 +725,7 @@ export default function Home() {
       ? {
           lessonsToday: "уроков сегодня",
           activitiesToday: "активностей сегодня",
+          pointsToday: "очков за ДЗ",
           hoursToday: "часов сегодня",
           edit: "Изменить",
           delete: "Удалить",
@@ -718,6 +738,7 @@ export default function Home() {
       : {
           lessonsToday: "lessons today",
           activitiesToday: "activities today",
+          pointsToday: "homework points",
           hoursToday: "hours today",
           edit: "Edit",
           delete: "Delete",
@@ -752,6 +773,11 @@ export default function Home() {
           authSignedInNotice: "Вход выполнен.",
           authSignUpNotice:
             "Аккаунт создан. Если включено подтверждение почты, проверь письмо и затем войди.",
+          nicknameLabel: "Никнейм",
+          nicknamePlaceholder: "Например, Daler",
+          nicknameHint: "Он будет показываться в аккаунте вместо почты, где это уместно.",
+          nicknameSave: "Сохранить никнейм",
+          nicknameSaved: "Никнейм сохранен.",
         }
       : {
           account: "Account",
@@ -776,6 +802,11 @@ export default function Home() {
           authSignedInNotice: "Signed in.",
           authSignUpNotice:
             "Account created. If email confirmation is enabled, check your inbox and then sign in.",
+          nicknameLabel: "Nickname",
+          nicknamePlaceholder: "For example, Daler",
+          nicknameHint: "It will appear in your account area instead of email where appropriate.",
+          nicknameSave: "Save nickname",
+          nicknameSaved: "Nickname saved.",
         };
   const accountToolsText =
     language === "ru"
@@ -858,6 +889,7 @@ export default function Home() {
   const todayEvents = groupedEvents.find((group) => group.day === todayKey)?.events ?? [];
   const lessonCount = todayEvents.filter((event) => event.type === "school").length;
   const activityCount = todayEvents.filter((event) => event.type !== "school").length;
+  const homeworkPoints = todayEvents.filter((event) => event.homeworkDone).length * 2;
   const totalHours = Math.max(
     0,
     Math.round(
@@ -1005,6 +1037,46 @@ export default function Home() {
     setSettingsOpen(false);
     setAuthNotice("");
     setAuthError("");
+    setNicknameDraft("");
+    setNicknameNotice("");
+    setNicknameError("");
+  }
+
+  async function saveNickname() {
+    if (!isSupabaseConfigured) {
+      setNicknameError(authText.authNoSupabase);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase || !session) {
+      setNicknameError(authText.authNoSupabase);
+      return;
+    }
+
+    const trimmedNickname = nicknameDraft.trim();
+
+    setNicknameLoading(true);
+    setNicknameError("");
+    setNicknameNotice("");
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        ...session.user.user_metadata,
+        nickname: trimmedNickname,
+      },
+    });
+
+    if (error) {
+      setNicknameError(error.message);
+      setNicknameLoading(false);
+      return;
+    }
+
+    setNicknameDraft(trimmedNickname);
+    setNicknameNotice(authText.nicknameSaved);
+    setNicknameLoading(false);
   }
 
   async function signInWithGoogle() {
@@ -1129,6 +1201,15 @@ export default function Home() {
       ),
     );
   }
+
+  const displayName =
+    typeof session?.user.user_metadata?.nickname === "string" &&
+    session.user.user_metadata.nickname.trim()
+      ? session.user.user_metadata.nickname.trim()
+      : typeof session?.user.user_metadata?.full_name === "string" &&
+          session.user.user_metadata.full_name.trim()
+        ? session.user.user_metadata.full_name.trim()
+        : session?.user.email ?? authText.authCta;
 
   return (
     <main className="min-h-screen px-4 py-6 text-[var(--foreground)] sm:px-6 lg:px-10">
@@ -1310,12 +1391,43 @@ export default function Home() {
                           <p className="text-sm leading-6 text-[color:var(--muted)]">
                             {authText.authSignedInAs}{" "}
                             <span className="font-semibold text-[var(--foreground)]">
-                              {session.user.email}
+                              {displayName}
                             </span>
                           </p>
+                          {displayName !== session.user.email ? (
+                            <p className="text-sm leading-6 text-[color:var(--muted-soft)]">
+                              {session.user.email}
+                            </p>
+                          ) : null}
                           <p className="text-sm leading-6 text-[color:var(--muted)]">
                             {authText.authSyncCloud}
                           </p>
+                          <Field label={authText.nicknameLabel}>
+                            <input
+                              className="glass-field h-12 w-full rounded-2xl px-4 text-[var(--foreground)] outline-none transition focus:-translate-y-0.5"
+                              onChange={(event) => setNicknameDraft(event.target.value)}
+                              placeholder={authText.nicknamePlaceholder}
+                              value={nicknameDraft}
+                            />
+                          </Field>
+                          <p className="text-sm leading-6 text-[color:var(--muted)]">
+                            {authText.nicknameHint}
+                          </p>
+                          {nicknameError ? (
+                            <StatusBanner tone="error" icon={<AlertIcon />} text={nicknameError} />
+                          ) : null}
+                          {nicknameNotice ? (
+                            <StatusBanner tone="success" icon={<CheckIcon />} text={nicknameNotice} />
+                          ) : null}
+                          <button
+                            className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
+                            disabled={nicknameLoading}
+                            onClick={saveNickname}
+                            type="button"
+                          >
+                            {nicknameLoading ? <LoaderIcon /> : <UserIcon />}
+                            {authText.nicknameSave}
+                          </button>
                           <button
                             className="glass-action inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] transition"
                             onClick={signOut}
@@ -1463,7 +1575,7 @@ export default function Home() {
                       type="button"
                     >
                       <UserIcon />
-                      {session?.user.email ?? authText.authCta}
+                      {displayName}
                     </button>
                   ) : null}
                   <div className="grid grid-cols-[minmax(0,1fr)_132px] gap-3 sm:flex sm:items-center">
@@ -1538,9 +1650,10 @@ export default function Home() {
                   />
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard value={lessonCount} label={uiText.lessonsToday} />
                 <StatCard value={activityCount} label={uiText.activitiesToday} />
+                <StatCard value={homeworkPoints} label={uiText.pointsToday} />
                 <StatCard value={totalHours} label={uiText.hoursToday} />
               </div>
             </div>
