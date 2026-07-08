@@ -1600,27 +1600,26 @@ export default function Home() {
   }
 
   function toggleHomeworkDone(eventId: string) {
-    let nextDelta = 0;
+    const targetEvent = events.find((event) => event.id === eventId);
+
+    if (!targetEvent) {
+      return;
+    }
+
+    const nextHomeworkDone = !targetEvent.homeworkDone;
+    const nextDelta = nextHomeworkDone ? 2 : -2;
 
     setEvents((current) =>
-      current.map((event) => {
-        if (event.id !== eventId) {
-          return event;
-        }
-
-        const nextHomeworkDone = !event.homeworkDone;
-        nextDelta = nextHomeworkDone ? 2 : -2;
-
-        return {
-          ...event,
-          homeworkDone: nextHomeworkDone,
-        };
-      }),
+      current.map((event) =>
+        event.id === eventId
+          ? {
+              ...event,
+              homeworkDone: nextHomeworkDone,
+            }
+          : event,
+      ),
     );
-
-    if (nextDelta !== 0) {
-      setMonthlyPoints((current) => clampPoints(current + nextDelta));
-    }
+    setMonthlyPoints((current) => clampPoints(current + nextDelta));
   }
 
   const displayName =
