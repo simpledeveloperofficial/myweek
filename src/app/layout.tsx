@@ -18,12 +18,12 @@ export const metadata: Metadata = {
   description: "School planner for grades 5-11 with bilingual scheduling.",
   icons: {
     icon: [
-      { url: "/favicon-v2.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon-192-v2.png", sizes: "192x192", type: "image/png" },
-      { url: "/myweek-app-icon-v2.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon-v3.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192-v3.png", sizes: "192x192", type: "image/png" },
+      { url: "/myweek-app-icon-v3.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon-v2.png", sizes: "180x180", type: "image/png" }],
-    shortcut: "/favicon-v2.png",
+    apple: [{ url: "/apple-touch-icon-v3.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon-v3.png",
   },
 };
 
